@@ -1,0 +1,11 @@
+##fileformat=VCFv4.1
+##source=breseq_GD2VCF_converterter
+##contig=<ID=Mini3,length=2000>
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##INFO=<ID=AD,Number=1,Type=Float,Description="Allele Depth (avg read count)">
+##INFO=<ID=DP,Number=1,Type=Float,Description="Total Depth (avg read count)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+Mini3.1	1155	.	G	A	1153.4	PASS	AF=1.0000;AD=270;DP=270
+Mini3.1	1158	.	T	C	153.4	PASS	AF=1.0000;AD=170;DP=170
+Mini3.1	1445	.	C	CAG	754.8	PASS	AF=1.0000;AD=207;DP=207

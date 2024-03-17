@@ -1,0 +1,97 @@
+LOCUS       Mini3                   2002 bp    DNA              UNK 01-JAN-1980
+DEFINITION  Streptomyces lividans TK24 chromosome, complete genome.
+ACCESSION   Mini3
+VERSION     Mini3.1
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     source          1..2002
+                     /organism="MUTATED_Streptomyces lividans TK24 1-2000"
+                     /mol_type="genomic DNA"
+                     /strain="TK24"
+                     /db_xref="taxon:457428"
+     gene            complement(393..689)
+                     /locus_tag="SLIV_RS00005"
+                     /old_locus_tag="SLIV_00005"
+     CDS             complement(393..689)
+                     /locus_tag="SLIV_RS00005"
+                     /old_locus_tag="SLIV_00005"
+                     /inference="COORDINATES: similar to AA
+                     sequence:RefSeq:WP_019330791.1"
+                     /note="Derived by automated computational analysis using
+                     gene prediction method: Protein Homology."
+                     /codon_start=1
+                     /transl_table=11
+                     /product="hypothetical protein"
+                     /protein_id="WP_038534176.1"
+                     /translation="MAPKTERIQFLRAVRQLRRIRSFYAAAVLLWTGSTAWTGWQAPGS
+                     RQMWVSVLLLAVFAVLLVTASLALRRLAVPATGRPVHHAAPHKLPSIRRHAHA"
+     gene            1002..1160
+                     /locus_tag="MUTATED_SLIV_RS00010"
+                     /old_locus_tag="MUTATED_SLIV_00010"
+     CDS             1002..1160
+                     /locus_tag="MUTATED_SLIV_RS00010"
+                     /old_locus_tag="MUTATED_SLIV_00010"
+                     /inference="COORDINATES: ab initio prediction:GeneMarkS-2+"
+                     /note="MUTATED_Derived by automated computational analysis
+                     using gene prediction method: GeneMarkS-2+."
+                     /codon_start=1
+                     /transl_table=11
+                     /product="MUTATED_hypothetical protein"
+                     /protein_id="MUTATED_WP_159025389.1"
+                     /translation="MEISEYETLSILLDAEADPNEVCFGLTLLTQRLLQRFLTLTPAKS
+                     AGSARDKR..."
+     gene            1150..1646
+                     /locus_tag="MUTATED_SLIV_RS37595"
+                     /old_locus_tag="MUTATED_SLIV_00015"
+     CDS             1150..1646
+                     /locus_tag="MUTATED_SLIV_RS37595"
+                     /old_locus_tag="MUTATED_SLIV_00015"
+                     /inference="COORDINATES: ab initio prediction:GeneMarkS-2+"
+                     /note="MUTATED_Derived by automated computational analysis
+                     using gene prediction method: GeneMarkS-2+."
+                     /codon_start=1
+                     /transl_table=11
+                     /product="MUTATED_hypothetical protein"
+                     /protein_id="MUTATED_WP_011116838.1"
+                     /translation="MTNDHGPSPLGSGSPYSDASIYVDAEAAPRIMARLRDALGLVEDD
+                     GPELAIGPVRVTGAPNDYATGRRAHPFDFLEWPTVLECEASEGTRAEVVQAVTAACSKR
+                     CGTVASKL"
+ORIGIN
+        1 cccgcggagc gggtacccta tcgctgcgcg ataggcaagc gaacacccgc gctgcgcgcg
+       61 ggtgttgcgc tcccgctccg cgggagcgct ggcgggacgc tgcgcgtccc gctcaccaac
+      121 ccggctgcgc cgggttggtg acgctccgtc cgctgcgctc ccggagccac ggggcctgcg
+      181 gccccgaggt gacctccgct gcgctccagc cacctggtgg cgctgcgcgc cacaacggcc
+      241 ggacccgctg tgcgggtcgg ccaacgggcc tacggcccga gcgcctacag ggaccggggc
+      301 tcgtgtggac gggctgtcag cagaccacct gctccgcccc gcggcggagc accatcgggg
+      361 cccggctgac ccggggaaag ggtgatgggc cctcaggcgt gagcgtgacg acggatgctc
+      421 ggcagcttgt gcggggcagc gtggtgcacg ggccggcccg ttgcgggaac ggcgagacgc
+      481 cgcagggcga ggctcgcggt gacgagcagt acggcgaaga cggccaggag gagaacggac
+      541 acccacatct gccggctccc cggagcctgc caacccgtcc aggcagtgct ccccgtccac
+      601 agcagaacgg ccgcagcgta gaaggagcgg atccggcgca gctgccgcac ggcccgcagg
+      661 aactggatgc gttcggtctt cggtgccatg cggcaccgtg tacccccgat gcgtgatgcc
+      721 catcggggtc gggtgaggtc ttgtggaagt gctctgtcga gagatcacgc atgtccgcat
+      781 ctcgatgtga tgcagcatgt aacattggcg taaagcgggg acacccggta gcggggattg
+      841 agggcgtatc ggcttcggcg cgttaggtcc gtggcccatc tgctatctga cggccacggc
+      901 ccatcagggc cagtggagag gggaagggcg ccatgggttc cgatgcgctg aggccgggct
+      961 cctggcctga ggtggagccg cggacaccgg cgcatcaagc cgtggagatc agtgagtacg
+     1021 agaccctctc catactcctg gatgctgagg cggatccgaa cgaggtgtgc ttcgggctca
+     1081 cgttgctgac ccagcggctg ctccagcgct tcctcaccct caccccggcc aaatccgcag
+     1141 ggagcgcgcg tgacaaacga tcacgggccg tcgcccctcg gctcgggctc cccttacagc
+     1201 gacgcctcga tctacgtgga cgcggaggcc gccccgcgga tcatggcccg gcttcgagac
+     1261 gccctcggcc tcgtcgagga cgacggtcca gagctggcaa tcgggccggt gcgcgtgacc
+     1321 ggcgcgccaa acgactacgc cacaggccgg cgcgctcacc ccttcgactt cctggaatgg
+     1381 ccgaccgtgc tggagtgcga ggcctccgag gggacacgtg ccgaggtggt gcaggccgtc
+     1441 acggcagcgt gctcgaagcg ctgtggcacg gtggcttcaa agctgtagcc gcctgcgact
+     1501 tcgaggacgg gttgcccgcg cgcggcggga tcgacaggta cctctacccc gctcctgccc
+     1561 ccgacggggg cgcggtcttt tcgggcacgg gtacgtggtg gaggaacctg atgtcgcccg
+     1621 gaaaaaggaa aggtcgaaat ctgtgatcag tctccgggaa catcaggtga cccagaaaac
+     1681 ggccattcgg gagtgggtca aattctttgc aagatcttct gcgcccgggc agggggctcg
+     1741 gggcacgctg gtgtccgcga ccgggtcggg caagacgatc acggctgctg tgagcgcgct
+     1801 ggagtgcttc ccgggcgggc ggatcctggt gaccgtgccc accctggacc tgctcgcaca
+     1861 gaccgcgcag gcctggcggg cggtgggcca ccgggcgccg atggtggcgg tgtgctcgct
+     1921 ggagaacgac ccggtcctca gcgcgctggg agtgcgcacc accacgaatg cgatccagct
+     1981 cgcgctctgg gcccgaaccg gg
+//

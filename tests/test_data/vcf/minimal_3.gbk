@@ -1,0 +1,192 @@
+LOCUS       Mini3             2000 bp    DNA              UNK 01-JAN-1980
+DEFINITION  Streptomyces lividans TK24 chromosome, complete genome.
+ACCESSION   Mini3
+VERSION     Mini3.1
+DBLINK      BioProject: PRJNA224116
+            BioSample: SAMN02947304
+            Assembly: GCF_000739105.1
+KEYWORDS    RefSeq.
+SOURCE      Streptomyces lividans TK24
+  ORGANISM  Streptomyces lividans TK24
+            Bacteria; Actinobacteria; Streptomycetales; Streptomycetaceae;
+            Streptomyces.
+REFERENCE   1  (bases 1 to 2000)
+  AUTHORS   Droste,J., Ruckert,C., Kalinowski,J., Hamed,M.B., Anne,J.,
+            Simoens,K., Bernaerts,K., Economou,A. and Busche,T.
+  TITLE     Extensive Reannotation of the Genome of the Model Streptomycete
+            Streptomyces lividans TK24 Based on Transcriptome and Proteome
+            Information
+  JOURNAL   Front Microbiol 12, 604034 (2021)
+   PUBMED   33935985
+  REMARK    Publication Status: Online-Only
+REFERENCE   2  (bases 1 to 8345283)
+  AUTHORS   Rebets,Y., Tsolis,K.C., Guethmundsdottir,E.E., Koepff,J.,
+            Wawiernia,B., Busche,T., Bleidt,A., Horbal,L., Myronovskyi,M.,
+            Ahmed,Y., Wiechert,W., Ruckert,C., Hamed,M.B., Bilyk,B., Anne,J.,
+            Friethjonsson,O., Kalinowski,J., Oldiges,M., Economou,A. and
+            Luzhetskyy,A.
+  TITLE     Characterization of Sigma Factor Genes in Streptomyces lividans
+            TK24 Using a Genomic Library-Based Approach for Multiple Gene
+            Deletions
+  JOURNAL   Front Microbiol 9, 3033 (2018)
+   PUBMED   30619125
+  REMARK    Publication Status: Online-Only
+REFERENCE   3  (bases 1 to 8345283)
+  AUTHORS   Ruckert,C., Albersmeier,A., Busche,T., Jaenicke,S., Winkler,A.,
+            Friethjonsson,O.H., Hreggviethsson,G.O., Lambert,C., Badcock,D.,
+            Bernaerts,K., Anne,J., Economou,A. and Kalinowski,J.
+  TITLE     Complete genome sequence of Streptomyces lividans TK24
+  JOURNAL   J Biotechnol 199, 21-22 (2015)
+   PUBMED   25680930
+REFERENCE   4  (bases 1 to 8345283)
+  AUTHORS   Droste,J., Ruckert,C., Kalinowski,J., Hamed,M.B., Anne,J.,
+            Simoens,K., Bernaerts,K., Economou,A. and Busche,T.
+  CONSRTM   StrepSynth
+  TITLE     Direct Submission
+  JOURNAL   Submitted (11-FEB-2021) CeBiTec, Bielefeld University,
+            Universitaetsstr. 27, Bielefeld, NRW 33615, Germany
+  REMARK    Protein update by submitter
+REFERENCE   5  (bases 1 to 8345283)
+  AUTHORS   Ruckert,C., Fridjonson,O.H., Lambert,C., van Wezel,G.P.,
+            Bernaerts,K., Anne,J., Economou,A. and Kalinowski,J.
+  CONSRTM   StrepSynth
+  TITLE     Direct Submission
+  JOURNAL   Submitted (14-SEP-2020) CeBiTec, Bielefeld University,
+            Universitaetsstr. 27, Bielefeld, NRW 33615, Germany
+  REMARK    Protein update by submitter
+REFERENCE   6  (bases 1 to 8345283)
+  AUTHORS   Ruckert,C., Fridjonson,O.H., Lambert,C., van Wezel,G.P.,
+            Bernaerts,K., Anne,J., Economou,A. and Kalinowski,J.
+  CONSRTM   StrepSynth
+  TITLE     Direct Submission
+  JOURNAL   Submitted (04-AUG-2014) CeBiTec, Bielefeld University,
+            Universitaetsstr. 27, Bielefeld, NRW 33615, Germany
+COMMENT     REFSEQ INFORMATION: The reference sequence is identical to
+            CP009124.1.
+            The annotation was added by the NCBI Prokaryotic Genome Annotation
+            Pipeline (PGAP). Information about PGAP can be found here:
+            https://www.ncbi.nlm.nih.gov/genome/annotation_prok/
+            
+            ##Genome-Assembly-Data-START##
+            Assembly Method       :: Newbler v. 2.8
+            Genome Coverage       :: 189.4x
+            Sequencing Technology :: Sanger dideoxy sequencing; 454; Illumina
+            ##Genome-Assembly-Data-END##
+            
+            ##Genome-Annotation-Data-START##
+            Annotation Provider               :: NCBI RefSeq
+            Annotation Date                   :: 10/01/2022 03:54:30
+            Annotation Pipeline               :: NCBI Prokaryotic Genome
+                                                 Annotation Pipeline (PGAP)
+            Annotation Method                 :: Best-placed reference protein
+                                                 set; GeneMarkS-2+
+            Annotation Software revision      :: 6.3
+            Features Annotated                :: Gene; CDS; rRNA; tRNA; ncRNA;
+                                                 repeat_region
+            Genes (total)                     :: 7,556
+            CDSs (total)                      :: 7,469
+            Genes (coding)                    :: 7,325
+            CDSs (with protein)               :: 7,325
+            Genes (RNA)                       :: 87
+            rRNAs                             :: 6, 6, 6 (5S, 16S, 23S)
+            complete rRNAs                    :: 6, 6, 6 (5S, 16S, 23S)
+            tRNAs                             :: 66
+            ncRNAs                            :: 3
+            Pseudo Genes (total)              :: 144
+            CDSs (without protein)            :: 144
+            Pseudo Genes (ambiguous residues) :: 0 of 144
+            Pseudo Genes (frameshifted)       :: 60 of 144
+            Pseudo Genes (incomplete)         :: 103 of 144
+            Pseudo Genes (internal stop)      :: 16 of 144
+            Pseudo Genes (multiple problems)  :: 30 of 144
+            ##Genome-Annotation-Data-END##
+FEATURES             Location/Qualifiers
+     source          1..2000
+                     /organism="Streptomyces lividans TK24 1-2000"
+                     /mol_type="genomic DNA"
+                     /strain="TK24"
+                     /db_xref="taxon:457428"
+     gene            complement(393..689)
+                     /locus_tag="SLIV_RS00005"
+                     /old_locus_tag="SLIV_00005"
+     CDS             complement(393..689)
+                     /locus_tag="SLIV_RS00005"
+                     /old_locus_tag="SLIV_00005"
+                     /inference="COORDINATES: similar to AA
+                     sequence:RefSeq:WP_019330791.1"
+                     /note="Derived by automated computational analysis using
+                     gene prediction method: Protein Homology."
+                     /codon_start=1
+                     /transl_table=11
+                     /product="hypothetical protein"
+                     /protein_id="WP_038534176.1"
+                     /translation="MAPKTERIQFLRAVRQLRRIRSFYAAAVLLWTGSTAWTGWQAPGS
+                     RQMWVSVLLLAVFAVLLVTASLALRRLAVPATGRPVHHAAPHKLPSIRRHAHA"
+     gene            1002..1160
+                     /locus_tag="SLIV_RS00010"
+                     /old_locus_tag="SLIV_00010"
+     CDS             1002..1160
+                     /locus_tag="SLIV_RS00010"
+                     /old_locus_tag="SLIV_00010"
+                     /inference="COORDINATES: ab initio prediction:GeneMarkS-2+"
+                     /note="Derived by automated computational analysis using
+                     gene prediction method: GeneMarkS-2+."
+                     /codon_start=1
+                     /transl_table=11
+                     /product="hypothetical protein"
+                     /protein_id="WP_159025389.1"
+                     /translation="MEISEYETLSILLDAEADPNEVCFGLTLLTQRLLQRFLTLTPAKS
+                     AGSARDE"
+     gene            1150..1644
+                     /locus_tag="SLIV_RS37595"
+                     /old_locus_tag="SLIV_00015"
+     CDS             1150..1644
+                     /locus_tag="SLIV_RS37595"
+                     /old_locus_tag="SLIV_00015"
+                     /inference="COORDINATES: ab initio prediction:GeneMarkS-2+"
+                     /note="Derived by automated computational analysis using
+                     gene prediction method: GeneMarkS-2+."
+                     /codon_start=1
+                     /transl_table=11
+                     /product="hypothetical protein"
+                     /protein_id="WP_011116838.1"
+                     /translation="MTNDHGPSPLGSGSPYSDASIYVDAEAAPRIMARLRDALGLVEDD
+                     GPELAIGPVRVTGAPNDYATGRRAHPFDFLEWPTVLECEASEGTRAEVVQAVTAVLEAL
+                     WHGGFKAVAACDFEDGLPARGGIDRYLYPAPAPDGGAVFSGTGTWWRNLMSPGKRKGRN
+                     L"
+ORIGIN
+        1 cccgcggagc gggtacccta tcgctgcgcg ataggcaagc gaacacccgc gctgcgcgcg
+       61 ggtgttgcgc tcccgctccg cgggagcgct ggcgggacgc tgcgcgtccc gctcaccaac
+      121 ccggctgcgc cgggttggtg acgctccgtc cgctgcgctc ccggagccac ggggcctgcg
+      181 gccccgaggt gacctccgct gcgctccagc cacctggtgg cgctgcgcgc cacaacggcc
+      241 ggacccgctg tgcgggtcgg ccaacgggcc tacggcccga gcgcctacag ggaccggggc
+      301 tcgtgtggac gggctgtcag cagaccacct gctccgcccc gcggcggagc accatcgggg
+      361 cccggctgac ccggggaaag ggtgatgggc cctcaggcgt gagcgtgacg acggatgctc
+      421 ggcagcttgt gcggggcagc gtggtgcacg ggccggcccg ttgcgggaac ggcgagacgc
+      481 cgcagggcga ggctcgcggt gacgagcagt acggcgaaga cggccaggag gagaacggac
+      541 acccacatct gccggctccc cggagcctgc caacccgtcc aggcagtgct ccccgtccac
+      601 agcagaacgg ccgcagcgta gaaggagcgg atccggcgca gctgccgcac ggcccgcagg
+      661 aactggatgc gttcggtctt cggtgccatg cggcaccgtg tacccccgat gcgtgatgcc
+      721 catcggggtc gggtgaggtc ttgtggaagt gctctgtcga gagatcacgc atgtccgcat
+      781 ctcgatgtga tgcagcatgt aacattggcg taaagcgggg acacccggta gcggggattg
+      841 agggcgtatc ggcttcggcg cgttaggtcc gtggcccatc tgctatctga cggccacggc
+      901 ccatcagggc cagtggagag gggaagggcg ccatgggttc cgatgcgctg aggccgggct
+      961 cctggcctga ggtggagccg cggacaccgg cgcatcaagc cgtggagatc agtgagtacg
+     1021 agaccctctc catactcctg gatgctgagg cggatccgaa cgaggtgtgc ttcgggctca
+     1081 cgttgctgac ccagcggctg ctccagcgct tcctcaccct caccccggcc aaatccgcag
+     1141 ggagcgcgcg tgacgaatga tcacgggccg tcgcccctcg gctcgggctc cccttacagc
+     1201 gacgcctcga tctacgtgga cgcggaggcc gccccgcgga tcatggcccg gcttcgagac
+     1261 gccctcggcc tcgtcgagga cgacggtcca gagctggcaa tcgggccggt gcgcgtgacc
+     1321 ggcgcgccaa acgactacgc cacaggccgg cgcgctcacc ccttcgactt cctggaatgg
+     1381 ccgaccgtgc tggagtgcga ggcctccgag gggacacgtg ccgaggtggt gcaggccgtc
+     1441 acggccgtgc tcgaagcgct gtggcacggt ggcttcaaag ctgtagccgc ctgcgacttc
+     1501 gaggacgggt tgcccgcgcg cggcgggatc gacaggtacc tctaccccgc tcctgccccc
+     1561 gacgggggcg cggtcttttc gggcacgggt acgtggtgga ggaacctgat gtcgcccgga
+     1621 aaaaggaaag gtcgaaatct gtgatcagtc tccgggaaca tcaggtgacc cagaaaacgg
+     1681 ccattcggga gtgggtcaaa ttctttgcaa gatcttctgc gcccgggcag ggggctcggg
+     1741 gcacgctggt gtccgcgacc gggtcgggca agacgatcac ggctgctgtg agcgcgctgg
+     1801 agtgcttccc gggcgggcgg atcctggtga ccgtgcccac cctggacctg ctcgcacaga
+     1861 ccgcgcaggc ctggcgggcg gtgggccacc gggcgccgat ggtggcggtg tgctcgctgg
+     1921 agaacgaccc ggtcctcagc gcgctgggag tgcgcaccac cacgaatgcg atccagctcg
+     1981 cgctctgggc ccgaaccggg
+//
