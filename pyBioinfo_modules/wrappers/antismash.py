@@ -16,6 +16,7 @@ from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import FNA_EXTENSIO
 import re
 from typing import Literal, TypedDict
 from Bio.SeqFeature import FeatureLocation
+from Bio.SeqFeature import BeforePosition, AfterPosition, ExactPosition
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -369,3 +370,131 @@ def find_NRPS_TE_domain(jsonResultPath: Path) -> list[SeqRecord]:
 
     jsonHandle.close()
     return teDomains
+
+
+class asdomain(TypedDict):
+    regionNr: int
+    protoclusterNr: int
+
+
+
+def get_asdomains_json(jsonResultPath: Path):
+
+    #dummy
+    resultName = 'abc'
+    teDomains = []
+    def TE_follow_PCP(domainList: list[str]) -> bool:
+        try:
+            locationTe = domainList.index('Thioesterase')
+            try:
+                if domainList[locationTe - 1] == 'PCP':
+                    return True
+            except IndexError:
+                pass
+            try:
+                if domainList[locationTe + 1] == 'PCP':
+                    return True
+            except IndexError:
+                pass
+        except ValueError:
+            pass
+        return False
+    #dummy
+
+    def parseLocationStr(locStr):
+        def parseSingleLocationStr(singleLocStr):
+            if '-' in singleLocStr:
+                strand = -1
+            elif '+' in singleLocStr:
+                strand = 1
+            else:
+                strand = None
+            m = re.match(r'\[([<]?\d+):([>]?\d+)\]', singleLocStr)
+            a = (BeforePosition(int(m.group(1)[1:])) if m.group(1)[0] == '<'
+                 else ExactPosition(int(m.group(1))))
+            b = (AfterPosition(int(m.group(2)[1:])) if m.group(2)[0] == '>'
+                 else ExactPosition(int(m.group(2))))
+            assert a <= b
+            return FeatureLocation(a, b, strand)
+        locations = []
+        if locStr.startswith('join'):
+            locStrs = re.match(r'join{(.+),[ ]?(.+)}', locStr)
+            for singleLocStr in locStrs.groups():
+                locations.append(parseSingleLocationStr(singleLocStr))
+        else:
+            locations.append(parseSingleLocationStr(locStr))
+        return locations
+
+
+
+    with open(jsonResultPath, 'rb') as jsonHandle:
+        asResultRecords = ijson.kvitems(jsonHandle, 'records.item')
+        recordFeatures = (v for k, v in asResultRecords if k == 'features')
+        recordIds = (v for k, v in asResultRecords if k == 'id')
+
+
+        for id, rec in zip(recordIds, recordFeatures):
+            regionNumber = -1
+            regionRules = []
+            regionProduct = ''
+            regionLocation = []
+            protoclusterNumber = -1
+            protoclusterProduct = ''
+            domainList: list[str] = []
+
+            targetFeats = {}
+
+            for i, feat in enumerate(rec):
+                try:
+                    if feat['qualifiers']['locus_tag'][0] == 'CP973_RS22495':
+                        targetFeats[i] = feat
+                except:
+                    continue
+                
+                featLocation = parseLocationStr(feat['location'])
+                if feat['type'] == 'region':
+                    regionNumber = int(feat['qualifiers']['region_number'][0])
+                    regionLocation = featLocation
+                    regionRules = feat['qualifiers']['rules']
+                    regionProduct = feat['qualifiers']['product']
+                elif feat['type'] == 'protocluster':
+                    protoclusterNumber = int(
+                        feat['qualifiers']['protocluster_number'][0])
+                    protoclusterProduct = feat['qualifiers']['product'][0]
+
+                if feat['type'] == 'aSDomain':
+                    domain = feat['qualifiers']['aSDomain'][0]
+                    domainList.append(domain)
+                    if domain == "Thioesterase":
+                        teSeqRec = SeqRecord(
+                            Seq(feat['qualifiers']['translation'][0]),
+                            id='_'.join(
+                                feat['qualifiers']['domain_id'][0].split('_')[1:]),
+                            name=feat['qualifiers']['locus_tag'][0],
+                            description=(
+                                f'    {resultName}_seq_{id}'
+                                f'_region{regionNumber:0>3}'
+                                f'_protocluster{protoclusterNumber:0>3}'
+                            )
+                        )
+
+                # See if next CDS started
+                if feat['type'] == 'CDS':
+                    if TE_follow_PCP(domainList):
+                        assert "teSeqRec" in locals()
+                        tqdm.write(
+                            'Found valid TE domain:\n'
+                            f'    {resultName}_seq_{id}'
+                            f'_region{regionNumber:0>3}'
+                            f'_protocluster{protoclusterNumber:0>3}'
+                        )
+                        teDomains.append(teSeqRec)
+                    domainList = []
+            
+            import json
+            with open('abc.json',
+                      'w') as o:
+                o.write(json.dumps(targetFeats))
+
+
+    jsonHandle.close()
