@@ -13,19 +13,21 @@ args = parser.parse_args()
 
 uniqSeqRecs: list[SeqRecord] = []
 
-nNonUniq = 0
+totalRecN = 0
+seqgroupN = 0
 seqGroupPrefix = 'SeqGroup'
 seqGroups: dict[str, tuple[Seq, list[str]]] = {}
 for rec in SeqIO.parse(args.f, 'fasta'):
+    totalRecN += 1
     isUnique = True
-    for i,t in enumerate(uniqSeqRecs):
+    for i, t in enumerate(uniqSeqRecs):
         if t.seq == rec.seq:
             isUnique = False
             if t.id.startswith(seqGroupPrefix):
                 seqGroups[t.id][1].append(rec.description)
             else:
-                nNonUniq += 1
-                newId = f'{seqGroupPrefix}{nNonUniq:0>3}'
+                seqgroupN += 1
+                newId = f'{seqGroupPrefix}{seqgroupN:0>4}'
                 newDesc = (
                     f'{t.description}|{rec.description}'
                 )
@@ -38,13 +40,14 @@ for rec in SeqIO.parse(args.f, 'fasta'):
 assert len(set([r.seq for r in uniqSeqRecs])) == len(uniqSeqRecs)
 
 print(
-    f'Parsed {nNonUniq + len(uniqSeqRecs)} sequences, found {len(uniqSeqRecs)}'
+    f'Parsed {totalRecN} sequences, found {len(uniqSeqRecs)}'
     f' unique sequences.'
 )
 
-SeqIO.write(uniqSeqRecs, args.f.with_suffix(f'.unique{args.f.suffix}'), 'fasta')
+SeqIO.write(uniqSeqRecs, args.f.with_suffix(
+    f'.unique{args.f.suffix}'), 'fasta')
 with open(args.f.with_suffix('.non_unique.tsv'), 'w') as handle:
-    handle.write('SeqGroup name\tn\tSequence\tSeq descriptions\n')
+    handle.write('SeqGroup\tn\tSequence\tSeq descriptions\n')
     for id, [s, descs] in seqGroups.items():
         handle.write(
             f'{id}\t{len(descs)}\t{s}\t{"|".join(descs)}\n'
