@@ -9,8 +9,8 @@ durand.dc@hotmail.com
 
 import argparse
 import os
+import subprocess
 from tempfile import NamedTemporaryFile
-from Bio.Blast.Applications import NcbiblastpCommandline
 from Bio.Blast import NCBIXML
 
 
@@ -84,25 +84,41 @@ if dbPath != "":  # current dir
 
 blastResTemp = NamedTemporaryFile()
 
-blastpCmd = NcbiblastpCommandline(
-    query=protsFasta,
-    db=dbName,
-    outfmt=5,
-    out=blastResTemp.name,
-    num_threads=args.cpu,
-    evalue=eThresh,
-    max_hsps=1,
-    max_target_seqs=1,
-)
-print("Running BLAST")
-print(blastpCmd)
+blastpCmd = [
+    "blastp",
+    "-query",
+    protsFasta,
+    "-db",
+    dbName,
+    "-outfmt",
+    "5",
+    "-out",
+    blastResTemp.name,
+    "-num_threads",
+    str(args.cpu),
+    "-evalue",
+    str(eThresh),
+    "-max_hsps",
+    "1",
+    "-max_target_seqs",
+    "1",
+]
 
-stdout, stderr = blastpCmd()
+
+print("Running BLAST")
+print(" ".join(blastpCmd))
+
+result = subprocess.run(blastpCmd, capture_output=True, text=True)
+
+if result.returncode != 0:
+    print("Error in BLAST")
+    print(result.stderr)
+    exit(1)
 
 print(f"Writing result in table {tableOut}")
-with open(tableOut, "w", encoding='utf-8') as outHandle:
+with open(tableOut, "w", encoding="utf-8") as outHandle:
     outHandle.write(f"{qname}\t{tDbName}\tCoverage\n")
-    with open(blastResTemp.name, "r", encoding='utf-8') as resHandle:
+    with open(blastResTemp.name, "r", encoding="utf-8") as resHandle:
         records = NCBIXML.parse(resHandle)
         for record in records:
             queryName = record.query
@@ -117,6 +133,8 @@ with open(tableOut, "w", encoding='utf-8') as outHandle:
                     coverage = hspCoverage
             outHandle.write(f"{queryName}\t{target}\t{coverage:.0%}\n")
 
+# TODO
+# If database not provided, make one in the temperary directory.
 # TODO
 # phmmer output parsing
 # Comparing blastp
