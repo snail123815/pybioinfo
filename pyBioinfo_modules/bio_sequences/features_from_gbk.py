@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Literal
+import logging
 
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
@@ -12,27 +13,47 @@ from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import (
     GBK_EXTENSIONS,
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+log = logging.getLogger(__name__)
 
-def getCdss(seqObj, codonTable=11, getProteins=0) -> SeqRecord:
+
+def _getCdss(
+    seqObj, codonTable=11, getProteins=0, getIdFrom=None
+) -> list[SeqRecord]:
     """Extract proteins from a SeqRecord.
     If your input file have multiple contigs, do a loop"""
     proteins = []
     cdss = []
+    idFromSequence = ["locus_tag", "label", "protein_id"]
 
     for i, feat in enumerate(seqObj.features):
         if feat.type == "CDS":
             cds = seqObj.seq[feat.location.start : feat.location.end]
 
-            if "locus_tag" in feat.qualifiers:
-                proteinLocustag = feat.qualifiers["locus_tag"][0]
-            elif "label" in feat.qualifiers:  # plasmids
-                proteinLocustag = feat.qualifiers["label"][0]
-            else:
-                proteinLocustag = f"CDS_{str(i).zfill(4)}"
-
+            proteinId = ""
             proteinGeneId = ""
             proteinProduct = ""
             proteinTranslation = ""
+
+            if getIdFrom is not None:
+                if getIdFrom in feat.qualifiers:
+                    proteinId = feat.qualifiers[getIdFrom][0]
+                else:
+                    log.warning(
+                        f'Feature name "{getIdFrom}" not found in CDS'
+                        f'{f"CDS_{str(i).zfill(4)}"}'
+                    )
+            if proteinId == "":
+                proteinId = f"CDS_{str(i).zfill(4)}"
+                for idFrom in idFromSequence:
+                    if idFrom in feat.qualifiers:
+                        proteinId = feat.qualifiers[idFrom][0]
+                        break
+
             if "gene" in feat.qualifiers:
                 proteinGeneId = feat.qualifiers["gene"][0]
                 proteinGeneId = proteinGeneId[0].upper() + proteinGeneId[1:]
@@ -61,7 +82,7 @@ def getCdss(seqObj, codonTable=11, getProteins=0) -> SeqRecord:
 
                 p = SeqRecord(
                     proteinTranslation,
-                    id=proteinLocustag,
+                    id=proteinId,
                     name=proteinGeneId,
                     description=proteinProduct,
                 )
@@ -69,12 +90,8 @@ def getCdss(seqObj, codonTable=11, getProteins=0) -> SeqRecord:
             else:
                 cdsRec = SeqRecord(
                     cds,
-                    id=(
-                        proteinGeneId
-                        if proteinGeneId != ""
-                        else proteinLocustag
-                    ),
-                    name=proteinLocustag,
+                    id=(proteinGeneId if proteinGeneId != "" else proteinId),
+                    name=proteinId,
                     description=proteinProduct,
                 )
                 cdss.append(cdsRec)
@@ -85,34 +102,42 @@ def getCdss(seqObj, codonTable=11, getProteins=0) -> SeqRecord:
         return cdss
 
 
-def getProteins(seqObj, codonTable=11):
-    """Extract proteins from a SeqRecord.
-    If your input file have multiple contigs, do a loop"""
-    return getCdss(seqObj, codonTable=codonTable, getProteins=1)
-
-
-def getFeatureFromGbk(
+def _getFeatureFromGbk(
     gbkPath: Path,
     codonTable=11,
     targetFeature: Literal["cds", "protein"] = "protein",
+    getIdFrom=None,
 ) -> Path:
+    """
+    Extract a feature from a GenBank file and write it to a new file
+    This function deals with reading file and deals with possible multiple
+    contigs.
+    Actual feature extraction is done by getCdss()
+    """
     gbkPath, unzip = decompFileIfCompressed(gbkPath)
     try:
         if targetFeature == "protein":
             faaPath = gbkPath.with_suffix(".faa")
             proteins = []
             for s in SeqIO.parse(str(gbkPath), "genbank"):
-                proteins.extend(getProteins(s, codonTable=codonTable))
+                proteins.extend(
+                    _getCdss(
+                        s,
+                        codonTable=codonTable,
+                        getProteins=1,
+                        getIdFrom=getIdFrom,
+                    )
+                )
             n = SeqIO.write(proteins, faaPath, "fasta")
-            print(f"Successfully wrote {n} proteins")
+            log.info(f"Successfully wrote {n} proteins")
             outputFile = faaPath
         elif targetFeature == "cds":
             cdss = []
             fnaPath = gbkPath.with_suffix(".cds.fna")
             for s in SeqIO.parse(str(gbkPath), "genbank"):
-                cdss.extend(getCdss(s, codonTable=codonTable))
+                cdss.extend(_getCdss(s, getIdFrom=getIdFrom))
             n = SeqIO.write(cdss, fnaPath, "fasta")
-            print(f"Successfully wrote {n} CDSs")
+            log.info(f"Successfully wrote {n} CDSs")
             outputFile = fnaPath
 
     except Exception as e:
@@ -123,13 +148,20 @@ def getFeatureFromGbk(
     return outputFile
 
 
-def getFaaFromGbk(gbkPath: Path, codonTable=11) -> Path:
-    return getFeatureFromGbk(
-        gbkPath, codonTable=codonTable, targetFeature="protein"
+def getFaaFromGbk(gbkPath: Path, codonTable=11, getIdFrom=None) -> Path:
+    """
+    Extract protein sequences from a GenBank file
+    """
+    return _getFeatureFromGbk(
+        gbkPath,
+        codonTable=codonTable,
+        targetFeature="protein",
+        getIdFrom=getIdFrom,
     )
 
 
-def getCdsFromGbk(
-    gbkPath: Path,
-) -> Path:
-    return getFeatureFromGbk(gbkPath, targetFeature="cds")
+def getCdsFromGbk(gbkPath: Path, getIdFrom=None) -> Path:
+    """
+    Extract CDS sequences from a GenBank file
+    """
+    return _getFeatureFromGbk(gbkPath, targetFeature="cds", getIdFrom=getIdFrom)
