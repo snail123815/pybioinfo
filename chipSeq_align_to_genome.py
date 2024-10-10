@@ -111,4 +111,7 @@ for s in samples:
     args.extend(["-S", samOut])
     print("Running...\n", " ".join(args))
     p = subprocess.run(args, capture_output=True)
-    print("Output:\n", p.stdout.decode("utf-8"), "\n")
+    bowtie2_output = p.stdout.decode("utf-8")
+    if len(bowtie2_output.strip()) > 0:
+        print("Output of bowtie2:\n", bowtie2_output, "\n")
+    print("Output file:\n", samOut, "\n")
