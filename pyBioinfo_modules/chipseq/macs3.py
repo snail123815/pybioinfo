@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 
 
@@ -11,8 +12,8 @@ def predictd(experimentDict, outputDir, gsize):
         sample = os.path.splitext(os.path.split(inputFile)[1])[0]
         rfileName = f"{sample}_preidctd.r"
         rfile = os.path.join(outputDir, rfileName)
-        if os.path.isfile(rfile):
-            continue
+        # if os.path.isfile(rfile):
+        #     continue
         argsPredictd = [
             "macs3",
             "predictd",
@@ -25,14 +26,24 @@ def predictd(experimentDict, outputDir, gsize):
             "--outdir",
             outputDir,
         ]
-        print("Running...")
+        print("Running:")
         print(" ".join(argsPredictd))
         p1 = subprocess.Popen(
             argsPredictd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        for line in p1.stdout:
-            print(line.decode("utf-8"), end="")
-        try:
+        while True:
+            output = p1.stdout.readline()
+            if len(output) == 0 and p1.poll() is not None:
+                break
+            if output:
+                print(output.decode("utf-8"), end="")
+        if p1.returncode != 0:
+            print("Error running macs3 predictd.")
+            print(f"Return code: {p1.returncode}")
+            raise Exception("macs3 predictd failed")
+
+        # Test if "Rscript" is in PATH
+        if shutil.which("Rscript") is not None:
             print("\nFinished, plotting with R script...")
             argsRscript = ["Rscript", rfileName]
             p2 = subprocess.Popen(
@@ -43,21 +54,21 @@ def predictd(experimentDict, outputDir, gsize):
             )
             for line in p2.stdout:
                 print(line.decode("utf-8"), end="")
-            with open(rfile, "r") as rscript:
-                for line in rscript.readlines():
-                    if "alt lag(s) : " in line:
-                        num = int(line.split(" : ")[1].split("'")[0])
-                        fragsizes.append(num)
-                        break
-            print(f"fragement size predicition for {sample} is {num}")
-        except BaseException:
-            break
-    try:
-        meansize = sum(fragsizes) / len(fragsizes)
-        print(f"Average fragment size is {meansize}")
-    except BaseException:
-        meansize = None
-    return meansize
+        else:
+            print("Rscript not found in PATH, skip plotting")
+        with open(rfile, "r") as rscript:
+            for line in rscript.readlines():
+                if "alt lag(s) : " in line:
+                    num = int(line.split(" : ")[1].split("'")[0])
+                    fragsizes.append(num)
+                    break
+        print(f"fragement size predicition for {sample} is {num}")
+    if len(fragsizes) > 0:
+        meansize = int(sum(fragsizes) / len(fragsizes))
+        print(f"Average fragment size predicted is {meansize}")
+        return meansize
+    else:
+        return None
 
 
 # predictd
@@ -83,6 +94,12 @@ def readComps(compFile, bamPath):
         for i, l in enumerate(f.readlines()):
             ls = l.strip().split("\t")
             if i == 0:
+                assert all([x in ls for x in ["name", "ctr", "exp"]]), (
+                    "The first line of the comparisons file should have the "
+                    "headers: 'name', 'ctr', 'exp' "
+                    "but it has: \n"
+                    f"{ls}"
+                )
                 ctri = ls.index("ctr")
                 expi = ls.index("exp")
                 continue
@@ -93,7 +110,12 @@ def readComps(compFile, bamPath):
 
 
 def callPeak(
-    experimentDict, outputDir, gsize, isPe=False, fragsize=None, fdr="1e-20"
+    experimentDict,
+    outputDir,
+    gsize,
+    isPe: bool = False,
+    fragsize: None | int = None,
+    fdr="1e-20",
 ):
     for e in experimentDict:
         ctr = experimentDict[e]["ctr"]
@@ -116,30 +138,63 @@ def callPeak(
             "-f",
             "BAM",
             "--gsize",
-            gsize,
+            str(gsize),
             "-q",
-            fdr,
+            str(fdr),
             "--call-summits",
             "-B",
+            # -B Save extended fragment pileup, and local lambda
+            # tracks (two files) at every bp into a bedGraph file
             "--keep-dup",
-            "all",
+            "all",  # should try "auto" or "all"
         ]
         if not isinstance(fragsize, type(None)):
             args.extend(
                 [
                     "--extsize",
-                    fragsize,
+                    str(fragsize),
                 ]
             )
         if isPe:
             args.extend(["--nomodel"])
-        print("Running...")
+        print("Running:")
         print(" ".join(args))
         p = subprocess.Popen(
             args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
+        # Check return code and process output
         for line in p.stdout:
             print(line.decode("utf-8"), end="")
+        p.wait()
+        if p.returncode == 0:
+            print("=" * 80)
+            print()
+            continue
+
+        print("Error running macs3 callpeak with default settings.")
+        print(f"Return code: {p.returncode}")
+        if p.stderr:
+            print("Error message:")
+            for line in p.stderr:
+                print(line.decode("utf-8"), end="")
+        newargs = args.copy()
+        if "--extsize" in newargs:
+            newargs.extend(["--nomodel"])
+        else:
+            newargs.extend(["--nomodel", "--extsize", "200"])
+        print("Trying again with extsize 200")
+        p = subprocess.Popen(
+            newargs, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+        # Check return code and process output
+        for line in p.stdout:
+            print(line.decode("utf-8"), end="")
+        p.wait()
+        if p.returncode == 0:
+            print("=" * 80)
+            print()
+        else:
+            raise Exception("macs3 callpeak failed with extsize 200")
 
 
 # callPeak
