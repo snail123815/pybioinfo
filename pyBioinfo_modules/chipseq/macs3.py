@@ -79,7 +79,7 @@ def predictd(experimentDict: Path, outputDir: Path, gsize):
 # predictd
 
 
-def readComps(compFile: Path, bamPath: Path) -> dict[str: Path]:
+def readComps(compFile: Path, bamPath: Path) -> dict[str:Path]:
     """
     name    ctr exp
     G24 G24C_G24C.sam   G24E_G24E.sam
@@ -151,17 +151,19 @@ def callPeak(
             # -B Save extended fragment pileup, and local lambda
             # tracks (two files) at every bp into a bedGraph file
             "--keep-dup",
-            "all",  # should try "auto" or "all"
+            "all",
         ]
-        if not isinstance(fragsize, type(None)):
+        if fragsize is not None:
             args.extend(
                 [
                     "--extsize",
                     str(fragsize),
+                    "--nomodel",
                 ]
             )
         if isPe:
-            args.extend(["--nomodel"])
+            if "--nomodel" not in args:
+                args.extend(["--nomodel"])
         print("Running:")
         print(" ".join(args))
         p = subprocess.Popen(
@@ -183,10 +185,10 @@ def callPeak(
             for line in p.stderr:
                 print(line.decode("utf-8"), end="")
         newargs = args.copy()
-        if "--extsize" in newargs:
-            newargs.extend(["--nomodel"])
-        else:
-            newargs.extend(["--nomodel", "--extsize", "200"])
+        assert "--nomodel" not in newargs, (
+            "--nomodel already in args, unknow reason for failure"
+        )
+        newargs.extend(["--nomodel", "--extsize", "200"])
         print("Trying again with extsize 200")
         p = subprocess.Popen(
             newargs, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
