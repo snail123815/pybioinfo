@@ -6,7 +6,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-r", "--rawReadsDir", type=str, help="path to raw reads")
 parser.add_argument(
-    "-g", "--genome", type=str, help="path to genome fasta file"
+    "-g", "--genome", type=str, help="path to genome *fasta* file"
 )
 parser.add_argument("-o", "--output", type=str, help="path to output sam files")
 parser.add_argument("-p", "--processers", type=int, help="number of cpu to use")
@@ -48,6 +48,8 @@ if not doneidx:
         ["bowtie2-build", genome, genomeBowtie2idx], capture_output=True
     )
     if not p.returncode == 0:
+        print(f"Command: {' '.join(p.args)}")
+        print(f"Error message: {p.stderr.decode()}")
         raise RuntimeError
 
 
@@ -55,7 +57,9 @@ if not os.path.isdir(samOutDir):
     os.makedirs(samOutDir)
 
 # generate file list to align
+# one data file per sample
 pairSep = "_"
+TO_REMOVE_SUFEIXES = ["_1", "_2", "_R1", "_R2", "_R1_001", "_R2_001"]
 samples = OrderedDict()
 for path, subdirs, files in os.walk(rawReadsDir):
     for name in files:
@@ -66,7 +70,13 @@ for path, subdirs, files in os.walk(rawReadsDir):
                 sname, pairn = sname.split(pairSep)
             else:
                 pairn = "0"
-            sname = os.path.split(path)[-1] + "_" + sname
+                raw_data_dir_name = os.path.split(path)[-1]
+                for suf in TO_REMOVE_SUFEIXES:
+                    if sname.endswith(suf):
+                        sname = sname[: -len(suf)]
+                        break
+                if sname not in raw_data_dir_name:
+                    sname = os.path.split(path)[-1] + "_" + sname
             if sname not in samples:
                 samples[sname] = {}
             samples[sname][pairn] = fqFile
