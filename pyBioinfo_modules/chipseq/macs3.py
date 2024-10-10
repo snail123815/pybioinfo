@@ -1,30 +1,31 @@
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 
-def predictd(experimentDict, outputDir, gsize):
+def predictd(experimentDict: Path, outputDir: Path, gsize):
     expfiles = [experimentDict[e]["exp"] for e in experimentDict]
-    exps = [os.path.splitext(ef)[0] for ef in expfiles]
+    # exps = [ef.stem for ef in expfiles]
     fragsizes = []
     for e in experimentDict:
-        inputFile = experimentDict[e]["exp"]
-        sample = os.path.splitext(os.path.split(inputFile)[1])[0]
+        inputFile = Path(experimentDict[e]["exp"])
+        sample = inputFile.stem
         rfileName = f"{sample}_preidctd.r"
-        rfile = os.path.join(outputDir, rfileName)
-        # if os.path.isfile(rfile):
+        rfile = outputDir / rfileName
+        # if rfile.exists():
         #     continue
         argsPredictd = [
             "macs3",
             "predictd",
             "-i",
-            inputFile,
+            str(inputFile),
             "--gsize",
             gsize,
             "--rfile",
             rfileName,
             "--outdir",
-            outputDir,
+            str(outputDir),
         ]
         print("Running:")
         print(" ".join(argsPredictd))
@@ -56,13 +57,17 @@ def predictd(experimentDict, outputDir, gsize):
                 print(line.decode("utf-8"), end="")
         else:
             print("Rscript not found in PATH, skip plotting")
-        with open(rfile, "r") as rscript:
-            for line in rscript.readlines():
-                if "alt lag(s) : " in line:
-                    num = int(line.split(" : ")[1].split("'")[0])
-                    fragsizes.append(num)
-                    break
-        print(f"fragement size predicition for {sample} is {num}")
+        if rfile.exists():
+            print(f"Fragment size prediction for {sample} is done")
+            with open(rfile, "r") as rscript:
+                for line in rscript.readlines():
+                    if "alt lag(s) : " in line:
+                        num = int(line.split(" : ")[1].split("'")[0])
+                        fragsizes.append(num)
+                        break
+            print(f"fragement size predicition for {sample} is {num}")
+        else:
+            print(f"Fragment size prediction for {sample} failed")
     if len(fragsizes) > 0:
         meansize = int(sum(fragsizes) / len(fragsizes))
         print(f"Average fragment size predicted is {meansize}")
@@ -74,7 +79,7 @@ def predictd(experimentDict, outputDir, gsize):
 # predictd
 
 
-def readComps(compFile, bamPath):
+def readComps(compFile: Path, bamPath: Path) -> dict[str: Path]:
     """
     name    ctr exp
     G24 G24C_G24C.sam   G24E_G24E.sam
@@ -94,7 +99,7 @@ def readComps(compFile, bamPath):
         for i, l in enumerate(f.readlines()):
             ls = l.strip().split("\t")
             if i == 0:
-                assert all([x in ls for x in ["name", "ctr", "exp"]]), (
+                assert all(x in ls for x in ["name", "ctr", "exp"]), (
                     "The first line of the comparisons file should have the "
                     "headers: 'name', 'ctr', 'exp' "
                     "but it has: \n"
@@ -103,8 +108,8 @@ def readComps(compFile, bamPath):
                 ctri = ls.index("ctr")
                 expi = ls.index("exp")
                 continue
-            ctr = os.path.join(bamPath, ls[ctri])
-            exp = os.path.join(bamPath, ls[expi])
+            ctr = bamPath / ls[ctri]
+            exp = bamPath / ls[expi]
             experimentDict[ls[0]] = {"ctr": ctr, "exp": exp}
     return experimentDict
 
@@ -128,13 +133,13 @@ def callPeak(
             "macs3",
             "callpeak",
             "-t",
-            exp,
+            str(exp),
             "-c",
-            ctr,
+            str(ctr),
             "-n",
-            e,
+            str(e),
             "--outdir",
-            singleExpOutputDir,
+            str(singleExpOutputDir),
             "-f",
             "BAM",
             "--gsize",
