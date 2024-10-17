@@ -1,0 +1,72 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "peak calling",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "chipSeq_macs3_peak_calling.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-b",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/alignments",
+                "-o",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling",
+                "--predictd",
+                "-c",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs_comparisons_002.txt"
+            ]
+        },
+        {
+            "name": "plot calling region",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/duc/repos/pybioinfo/chipSeq_plot_pileup_comparisons.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--macsOutput",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
+                "--genome",
+                "~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
+                "--region",
+                "1,968,245-1,969,261"
+            ]
+        },
+        {
+            "name": "plot calling logscale",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/duc/repos/pybioinfo/chipSeq_plot_pileup_comparisons.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--macsOutput",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
+                "--genome",
+                "~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
+                "--gene",
+                "SCO1839",
+                // "SCO5085",
+                "--logscale",
+            ]
+        },
+        {
+            "name": "plot calling gene",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/duc/repos/pybioinfo/chipSeq_plot_pileup_comparisons.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--macsOutput",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
+                "--genome",
+                "~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
+                "--gene",
+                "SCO1839",
+                // "SCO5085",
+            ]
+        }
+    ]
+}
