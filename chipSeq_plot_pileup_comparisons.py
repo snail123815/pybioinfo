@@ -8,8 +8,8 @@ from typing import TextIO
 import numpy as np
 from Bio import SeqIO
 import matplotlib.pyplot as plt
-from matplotlib.patches import Arrow, Rectangle
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Rectangle, FancyArrow
+import matplotlib.transforms as mtransforms
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +41,11 @@ agrparser.add_argument(
         "When plotting a gene, the flanking region to include. "
         "Only effective when --gene is provided."
     ),
+)
+agrparser.add_argument(
+    "--logscale",
+    action="store_true",
+    help="Whether to plot the y-axis in log scale.",
 )
 
 # Parse the arguments
@@ -166,85 +171,141 @@ else:
 tr_treat_data = np.array(read_pileup(treat_pileup, tr_start, tr_end))
 
 
-# Function to plot genes as arrows with gradient fill
-def plot_genes(ax, genome_with_annotation, region_start, region_end):
-    height = ax.get_ylim()[1] * 0.5
+# Function to plot genes as arrows
+def plot_genes(
+    ax, genome_with_annotation, region_start, region_end, color=["C2", "C2"]
+):
+    xrange = ax.get_xlim()[1] - ax.get_xlim()[0]
+    arrow_y_loc = 0.1
+    # Gene x-axis position will be defined by gene location itself,
+    # while y-axis position will be fixed to axes coordinate
+    trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
     for feature in genome_with_annotation.features:
         if feature.type == "gene":
-            start = feature.location.start
-            end = feature.location.end
-            strand = feature.location.strand
+            gene_start = feature.location.start
+            gene_end = feature.location.end
+            gene_strand = feature.location.strand
 
             partial_right = False
             partial_left = False
-            if end < region_start:
+            if gene_end < region_start:
                 continue
-            if start > region_end:
+            if gene_start > region_end:
                 break
-            if start < region_start:
-                start = region_start
+            if gene_start < region_start:
+                gene_start = region_start
                 partial_left = True
-            if end > region_end - 1:
-                end = region_end - 1
+            if gene_end > region_end - 1:
+                gene_end = region_end - 1
                 partial_right = True
 
-            color = "C3"
-            if strand == -1:
-                start, end = end, start
-                color = "C4"
+            arrow_color = color[0] if gene_strand == 1 else color[1]
+
+            # Define fixed head width and head length
+            head_width = 0.05
+            head_length = 0.007 * xrange
 
             # Add arrowhead
-            arrow = Arrow(
-                start,
-                height,
-                end - start + 1,
+            # Make sure the arrowhead is of the same size
+            arrow_start = gene_start if gene_strand == 1 else gene_end
+            arrow_vector = gene_strand * (gene_end - gene_start)
+            arrow = FancyArrow(
+                arrow_start,
+                arrow_y_loc,
+                arrow_vector,
                 0,
-                width=height,
-                # edgecolor=None,
-                facecolor=color,
+                width=head_width,
+                head_width=head_width,
+                head_length=head_length,
+                length_includes_head=True,
+                linewidth=0,
+                facecolor=arrow_color,
+                transform=trans,
             )
             ax.add_patch(arrow)
 
-            # Divide the arrow into segments to simulate gradient
-            num_segments = 3
-            segment_length = 0.005 * (ax.get_xlim()[1] - ax.get_xlim()[0])
-            for i in range(num_segments):
-                segment_start = start + strand * 2 * i * segment_length
-                segment_start += (
-                    segment_length * strand * (2 if strand == -1 else 1)
-                )
-                rect = Rectangle(
-                    (segment_start, height - 1000),
-                    segment_length,
-                    2000,
-                    linewidth=0,
-                    edgecolor=None,
-                    facecolor="C0",
-                )
-                ax.add_patch(rect)
+            def make_gene_appear_truncated(
+                truncate_loc,
+                direction,
+                num_segments=2,
+                seg_length_to_arrow_head_ratio=0.4,
+            ):
+                segment_length = seg_length_to_arrow_head_ratio * head_length
+                for i in range(num_segments):
+                    # if i == 1: continue
+                    segment_start = (
+                        truncate_loc + direction * 2 * i * segment_length
+                    )
+                    segment_start += (
+                        segment_length
+                        * direction
+                        * (2 if direction == -1 else 1)
+                    )
+                    rect = Rectangle(
+                        (segment_start, arrow_y_loc - head_width / 2),
+                        segment_length,
+                        head_width,
+                        linewidth=0,
+                        edgecolor=None,
+                        facecolor=ax.get_facecolor(),
+                        transform=trans,
+                    )
+                    ax.add_patch(rect)
+
+            if partial_left:
+                make_gene_appear_truncated(gene_start, 1)
+            if partial_right:
+                make_gene_appear_truncated(gene_end, -1)
 
             ax.text(
-                (start + end) / 2,
-                height + 0.1,
+                (gene_start + gene_end) / 2,
+                arrow_y_loc,
                 feature.qualifiers.get("gene", [""])[0],
                 ha="center",
-                va="bottom",
+                va="center",
                 fontsize=8,
+                transform=trans
             )
 
 
-fig, ax = plt.subplots(figsize=(10, 2))
+fig, ax = plt.subplots(figsize=(10, 4))
 
 ax.plot(tr_control_data[:, 0], tr_control_data[:, 1], label="Control")
 ax.plot(tr_treat_data[:, 0], tr_treat_data[:, 1], label="Treat")
+ax.spines["top"].set_visible(False)  # Hide the top spine
+ax.spines["right"].set_visible(False)  # Hide the right spine
+
 plot_genes(ax, genome_with_annotation, tr_start, tr_end)
 
 ax.set_xlim(tr_start, tr_end)
-ax.set_yticks([])
 ax.set_xlabel("Genomic Position")
-ax.set_title("Normalized pileup of ChIP-seq reads")
+ax.set_title("Pileup of ChIP-seq model")
 
-plt.tight_layout()
+if args.logscale:
+    ax.set_yscale("log")
+    min_data = min(tr_control_data[:, 1].min(), tr_treat_data[:, 1].min())
+    if min_data > 100:
+        ymin = 100
+    elif min_data > 10:
+        ymin = 10
+    else:
+        ymin = 1
+    ax.set_ylim(ymin, ax.get_ylim()[1])
+    ax.set_ylabel("Log2 Pileup")
+else:
+    ax.set_ylabel("Pileup")
+    ymin = 0
+
+# Remove y-ticks below zero
+yticks = ax.get_yticks()
+ax.set_yticks([ytick for ytick in yticks if ytick >= ymin])
+ax.spines["bottom"].set_position(("data", ymin))
+# Remove the y-axis spine below x axis
+ax.spines["left"].set_bounds(ymin, ax.get_ylim()[1])
+ax.xaxis.set_ticks_position("bottom")
+ax.xaxis.set_ticks_position("bottom")
+
+# plt.tight_layout()
 plt.savefig("__temp.png", dpi=600)
 
 if control_lambda:
