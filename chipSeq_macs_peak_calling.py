@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from pyBioinfo_modules.chipseq.macs3 import readComps, predictd, callPeak
+from pyBioinfo_modules.chipseq.macs import readComps, predictd, callPeak
 
 parser = argparse.ArgumentParser(description="ChipSeq MACS3 Peak Calling")
 
