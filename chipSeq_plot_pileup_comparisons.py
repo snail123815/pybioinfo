@@ -173,7 +173,7 @@ tr_treat_data = np.array(read_pileup(treat_pileup, tr_start, tr_end))
 
 # Function to plot genes as arrows
 def plot_genes(
-    ax, genome_with_annotation, region_start, region_end, color=["C2", "C2"]
+    ax, genome_with_annotation, region_start, region_end, color=["C0", "C2"]
 ):
     xrange = ax.get_xlim()[1] - ax.get_xlim()[0]
     arrow_y_loc = 0.1
@@ -262,16 +262,34 @@ def plot_genes(
                 arrow_y_loc,
                 feature.qualifiers.get("gene", [""])[0],
                 ha="center",
-                va="center",
+                va="center_baseline",
                 fontsize=8,
-                transform=trans
+                transform=trans,
             )
 
 
 fig, ax = plt.subplots(figsize=(10, 4))
 
-ax.plot(tr_control_data[:, 0], tr_control_data[:, 1], label="Control")
-ax.plot(tr_treat_data[:, 0], tr_treat_data[:, 1], label="Treat")
+# Plot control pileup
+ax.plot(
+    tr_control_data[:, 0],
+    tr_control_data[:, 1],
+    label="Genome-seq",
+    color="silver",
+)
+
+# Plot treat pileup
+peaks = np.ma.masked_where(
+    tr_treat_data[:, 1] < tr_control_data[:, 1], tr_treat_data[:, 1]
+)
+base_line = np.ma.masked_where(
+    tr_treat_data[:, 1] > tr_control_data[:, 1], tr_treat_data[:, 1]
+)
+x = tr_treat_data[:, 0]
+
+ax.plot(x, base_line, label="ChIP-seq", color="dimgray")
+ax.plot(x, peaks, label="ChIP-seq peaks", color="C1")
+ax.legend()
 ax.spines["top"].set_visible(False)  # Hide the top spine
 ax.spines["right"].set_visible(False)  # Hide the right spine
 
