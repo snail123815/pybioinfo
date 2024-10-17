@@ -14,42 +14,45 @@ import matplotlib.transforms as mtransforms
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Parse the input arguments
-agrparser = argparse.ArgumentParser(
-    description=(
-        "Read pileup value (coverage) from macs output pileup file, "
-        "and plot the pileup line on the given genome within a given region."
+def arg_parser():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Read pileup value (coverage) from macs output pileup file, "
+            "and plot the pileup line on the given genome within a given region."
+        )
     )
-)
-agrparser.add_argument(
-    "--macsOutput",
-    type=Path,
-    help="The path to the macs output dir.",
-    required=True,
-)
-agrparser.add_argument(
-    "--genome", type=Path, help="The path to the genome file.", required=True
-)
-arg_group1 = agrparser.add_mutually_exclusive_group(required=True)
-arg_group1.add_argument("--region", type=str, help="The region to plot.")
-arg_group1.add_argument("--gene", type=str, help="The gene to plot.")
-agrparser.add_argument(
-    "--flanking",
-    type=int,
-    default=None,
-    help=(
-        "When plotting a gene, the flanking region to include. "
-        "Only effective when --gene is provided."
-    ),
-)
-agrparser.add_argument(
-    "--logscale",
-    action="store_true",
-    help="Whether to plot the y-axis in log scale.",
-)
+    parser.add_argument(
+        "--macsOutput",
+        type=Path,
+        help="The path to the macs output dir.",
+        required=True,
+    )
+    parser.add_argument(
+        "--genome", type=Path, help="The path to the genome file.", required=True
+    )
+    arg_group1 = parser.add_mutually_exclusive_group(required=True)
+    arg_group1.add_argument("--region", type=str, help="The region to plot.")
+    arg_group1.add_argument("--gene", type=str, help="The gene to plot.")
+    parser.add_argument(
+        "--flanking",
+        type=int,
+        default=None,
+        help=(
+            "When plotting a gene, the flanking region to include. "
+            "Only effective when --gene is provided."
+        ),
+    )
+    parser.add_argument(
+        "--logscale",
+        action="store_true",
+        help="Whether to plot the y-axis in log scale.",
+    )
+    return parser
 
-# Parse the arguments
+# Create the argument parser and parse the arguments
+agrparser = arg_parser()
 args = agrparser.parse_args()
+
 if args.region and args.flanking:
     agrparser.error("--flanking is only effective when --gene is provided.")
 if args.gene and args.flanking is None:
