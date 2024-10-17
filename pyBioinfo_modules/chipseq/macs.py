@@ -3,6 +3,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+MACS_PROGRAM = "macs3"
 
 def predictd(experimentDict: Path, outputDir: Path, gsize):
     expfiles = [experimentDict[e]["exp"] for e in experimentDict]
@@ -16,7 +17,7 @@ def predictd(experimentDict: Path, outputDir: Path, gsize):
         # if rfile.exists():
         #     continue
         argsPredictd = [
-            "macs3",
+            MACS_PROGRAM,
             "predictd",
             "-i",
             str(inputFile),
@@ -39,9 +40,9 @@ def predictd(experimentDict: Path, outputDir: Path, gsize):
             if output:
                 print(output.decode("utf-8"), end="")
         if p1.returncode != 0:
-            print("Error running macs3 predictd.")
+            print(f"Error running {MACS_PROGRAM} predictd.")
             print(f"Return code: {p1.returncode}")
-            raise Exception("macs3 predictd failed")
+            raise Exception(f"{MACS_PROGRAM} predictd failed")
 
         # Test if "Rscript" is in PATH
         if shutil.which("Rscript") is not None:
@@ -130,7 +131,7 @@ def callPeak(
             os.mkdir(outputDir)
 
         args = [
-            "macs3",
+            MACS_PROGRAM,
             "callpeak",
             "-t",
             str(exp),
@@ -178,16 +179,16 @@ def callPeak(
             print()
             continue
 
-        print("Error running macs3 callpeak with default settings.")
+        print(f"Error running {MACS_PROGRAM} callpeak with default settings.")
         print(f"Return code: {p.returncode}")
         if p.stderr:
             print("Error message:")
             for line in p.stderr:
                 print(line.decode("utf-8"), end="")
         newargs = args.copy()
-        assert "--nomodel" not in newargs, (
-            "--nomodel already in args, unknow reason for failure"
-        )
+        assert (
+            "--nomodel" not in newargs
+        ), "--nomodel already in args, unknow reason for failure"
         newargs.extend(["--nomodel", "--extsize", "200"])
         print("Trying again with extsize 200")
         p = subprocess.Popen(
@@ -201,7 +202,4 @@ def callPeak(
             print("=" * 80)
             print()
         else:
-            raise Exception("macs3 callpeak failed with extsize 200")
-
-
-# callPeak
+            raise Exception(f"{MACS_PROGRAM} callpeak failed with extsize 200")
