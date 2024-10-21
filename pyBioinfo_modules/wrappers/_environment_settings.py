@@ -14,8 +14,9 @@ PROKKA_ENV: Path | None = Path.home() / "genvs/quasan"
 MASH_ENV: Path | None = Path.home() / "genvs/phylophlan"
 BIGSCAPE_ENV: Path | None = Path.home() / "genvs/bigscape"
 SHORTREADS_ENV: Path | None = Path.home() / "genvs/shortReads"
-
+HMMER_ENV: Path | None = Path.home() / "genvs/antismash"
 PFAM_DB: Path | None = None
+
 try:
     PFAM_DB = sorted(
         [
