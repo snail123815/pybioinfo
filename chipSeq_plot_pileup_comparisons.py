@@ -283,11 +283,12 @@ def plot_genes(
     # Gene x-axis position will be defined by gene location itself,
     # while y-axis position will be fixed to axes coordinate
     trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
-    ax.plot(
+    # Plot line representing the genome sequence
+    genome_line = ax.plot(
         [region_start, region_end],
         [arrow_y_loc, arrow_y_loc],
         color="black",
-        linewidth=2,
+        linewidth=1.5,
         transform=trans,
         zorder=0,
     )
@@ -369,9 +370,18 @@ def plot_genes(
 
             if partial_left:
                 make_gene_appear_truncated(gene_start, 1)
+                if gene_strand == -1:
+                    # Reduce the genome_line from left by an arrow head length
+                    genome_line[0].set_xdata(
+                        [region_start + head_length, region_end]
+                    )
             if partial_right:
                 make_gene_appear_truncated(gene_end, -1)
-
+                if gene_strand == 1:
+                    # Reduce the genome_line from right by an arrow head length
+                    genome_line[0].set_xdata(
+                        [region_start, region_end - head_length]
+                    )
             gene_names.append(
                 ax.text(
                     (gene_start + gene_end) / 2,
@@ -383,6 +393,17 @@ def plot_genes(
                     transform=trans,
                 )
             )
+
+    # Reduce the length of the genome line by 3 times the pixel length
+    # to prevent the line from touching the end of the plotted gene at render,
+    # especially when the gene is at the edge of the plot.
+    pixel_length = (region_end - region_start) / ax.get_window_extent().width
+    genome_line[0].set_xdata(
+        [
+            genome_line[0].get_xdata()[0] + 3 * pixel_length,
+            genome_line[0].get_xdata()[1] - 3 * pixel_length,
+        ]
+    )
 
     if len(gene_names) > 10:
         interval = len(gene_names) // 10
