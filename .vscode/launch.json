@@ -32,7 +32,7 @@
                 "--genome",
                 "~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
                 "--region",
-                "1,968,245-1,969,261"
+                "1,958,245-1,979,261"
             ]
         },
         {
