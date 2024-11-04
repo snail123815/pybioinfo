@@ -342,29 +342,30 @@ def plot_genes(
                 direction,
                 num_segments=2,
                 seg_length_to_arrow_head_ratio=0.4,
+                block_width=head_width * 1.02,
+                # A multiplier > 1 to make the block just a bit wider than the
+                # arrow head, preventing line leakage when rendered.
             ):
                 segment_length = seg_length_to_arrow_head_ratio * head_length
                 for i in range(num_segments):
-                    # if i == 1: continue
                     segment_start = (
-                        truncate_loc + direction * 2 * i * segment_length
+                        truncate_loc
+                        + direction
+                        * segment_length
+                        * (2 * i + (2 if direction == -1 else 1))
                     )
-                    segment_start += (
-                        segment_length
-                        * direction
-                        * (2 if direction == -1 else 1)
+                    ax.add_patch(
+                        Rectangle(
+                            (segment_start, arrow_y_loc - block_width / 2),
+                            segment_length,
+                            block_width,
+                            linewidth=0,
+                            edgecolor=None,
+                            facecolor=ax.get_facecolor(),
+                            transform=trans,
+                            zorder=1,
+                        )
                     )
-                    rect = Rectangle(
-                        (segment_start, arrow_y_loc - head_width / 2),
-                        segment_length,
-                        head_width,
-                        linewidth=0,
-                        edgecolor=None,
-                        facecolor=ax.get_facecolor(),
-                        transform=trans,
-                        zorder=1,
-                    )
-                    ax.add_patch(rect)
 
             if partial_left:
                 make_gene_appear_truncated(gene_start, 1)
