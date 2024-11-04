@@ -65,10 +65,11 @@ from pathlib import Path
 from typing import TextIO
 
 import matplotlib.pyplot as plt
-import matplotlib.transforms as mtransforms
 import numpy as np
 from Bio import SeqIO
-from matplotlib.patches import FancyArrow, Rectangle
+from pyBioinfo_modules.chipseq.coverage import read_macs_pileup
+from pyBioinfo_modules.bio_sequences.features_from_gbk import get_target_region
+from pyBioinfo_modules.bio_sequences.plot_genes import plot_genes
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -124,77 +125,6 @@ def arg_parser():
     )
 
     return parser
-
-
-def read_macs_pileup(
-    pileup: TextIO, tr_start: int, tr_end: int
-) -> list[tuple[int, float]]:
-    # Read the pileup file, a range per line
-    tr_range_pileup = []
-    for line in pileup:
-        _, start, end, value = line.strip().split("\t")
-        end = int(end)
-        if end <= tr_start:
-            continue
-        start = int(start)
-        if start > tr_end:
-            break
-        value = float(value)
-        tr_range_pileup.append((start, end, value))
-    # Fill in the the range per base
-    tr_perbase_pileup = []
-    for start, end, value in tr_range_pileup:
-        effective_range = range(max(start, tr_start), min(end, tr_end + 1))
-        for i in effective_range:
-            tr_perbase_pileup.append((i, value))
-    return tr_perbase_pileup
-
-
-def get_target_region(args, genome_with_annotation):
-    if args.region and args.flanking:
-        log.error("--flanking is only effective when --gene is provided.")
-    if args.gene and args.flanking is None:
-        args.flanking = 1500
-        log.warning(
-            f"--flanking is not provided, using default value: {args.flanking}"
-        )
-
-    if args.region:
-        # Parse the region
-        match = re.match(r"(\d+)-(\d+)", args.region.replace(",", ""))
-        if not match:
-            log.error(
-                "Invalid region format. Please provide a region in the format: "
-                "start-end"
-            )
-            raise ValueError("Invalid region format.")
-        tr_start, tr_end = match.groups()
-        tr_start, tr_end = int(tr_start) - 1, int(tr_end)
-        log.info(f"Region to plot: {tr_start + 1}-{tr_end}")
-    elif args.gene:
-        # Find the start of the gene
-        for feature in genome_with_annotation.features:
-            if (
-                feature.type == "gene"
-                and feature.qualifiers["gene"][0] == args.gene
-            ):
-                if feature.location.strand == -1:
-                    gene_start = int(feature.location.end)
-                else:
-                    gene_start = int(feature.location.start)
-                log.info(
-                    f"Gene {args.gene} found on strand "
-                    f"{feature.location.strand}, position: {gene_start}"
-                )
-                break
-        else:
-            log.error(f"Gene {args.gene} not found in the genome file.")
-        tr_start = max(0, gene_start - args.flanking - 1)
-        tr_end = min(len(genome_with_annotation), gene_start + args.flanking)
-        log.info(
-            f"Region with flanking region to plot: {tr_start + 1}-{tr_end}"
-        )
-    return tr_start, tr_end
 
 
 def read_input(args, tr_start, tr_end):
@@ -273,143 +203,6 @@ def read_input(args, tr_start, tr_end):
 
     return tr_control_data, tr_treat_data
 
-
-# Function to plot genes as arrows
-def plot_genes(
-    ax, genome_with_annotation, region_start, region_end, color=["C0", "C2"]
-):
-    xrange = ax.get_xlim()[1] - ax.get_xlim()[0]
-    arrow_y_loc = 0.1
-    # Gene x-axis position will be defined by gene location itself,
-    # while y-axis position will be fixed to axes coordinate
-    trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
-    # Plot line representing the genome sequence
-    genome_line = ax.plot(
-        [region_start, region_end],
-        [arrow_y_loc, arrow_y_loc],
-        color="black",
-        linewidth=1.5,
-        transform=trans,
-        zorder=0,
-    )
-    gene_names = []
-    for feature in genome_with_annotation.features:
-        if feature.type == "gene":
-            gene_start = feature.location.start
-            gene_end = feature.location.end
-            gene_strand = feature.location.strand
-
-            partial_right = False
-            partial_left = False
-            if gene_end < region_start:
-                continue
-            if gene_start > region_end:
-                break
-            if gene_start < region_start:
-                gene_start = region_start
-                partial_left = True
-            if gene_end > region_end - 1:
-                gene_end = region_end - 1
-                partial_right = True
-
-            arrow_color = color[0] if gene_strand == 1 else color[1]
-
-            # Define fixed head width and head length
-            head_width = 0.05
-            head_length = min(abs(gene_end - gene_start), 0.007 * xrange)
-
-            # Add arrowhead
-            # Make sure the arrowhead is of the same size
-            arrow_start = gene_start if gene_strand == 1 else gene_end
-            arrow_vector = gene_strand * (gene_end - gene_start)
-            arrow = FancyArrow(
-                arrow_start,
-                arrow_y_loc,
-                arrow_vector,
-                0,
-                width=head_width,
-                head_width=head_width,
-                head_length=head_length,
-                length_includes_head=True,
-                linewidth=0,
-                facecolor=arrow_color,
-                transform=trans,
-                zorder=1,
-            )
-            ax.add_patch(arrow)
-
-            def make_gene_appear_truncated(
-                truncate_loc,
-                direction,
-                num_segments=2,
-                seg_length_to_arrow_head_ratio=0.4,
-                block_width=head_width * 1.02,
-                # A multiplier > 1 to make the block just a bit wider than the
-                # arrow head, preventing line leakage when rendered.
-            ):
-                segment_length = seg_length_to_arrow_head_ratio * head_length
-                for i in range(num_segments):
-                    segment_start = (
-                        truncate_loc
-                        + direction
-                        * segment_length
-                        * (2 * i + (2 if direction == -1 else 1))
-                    )
-                    ax.add_patch(
-                        Rectangle(
-                            (segment_start, arrow_y_loc - block_width / 2),
-                            segment_length,
-                            block_width,
-                            linewidth=0,
-                            edgecolor=None,
-                            facecolor=ax.get_facecolor(),
-                            transform=trans,
-                            zorder=1,
-                        )
-                    )
-
-            if partial_left:
-                make_gene_appear_truncated(gene_start, 1)
-                if gene_strand == -1:
-                    # Reduce the genome_line from left by an arrow head length
-                    genome_line[0].set_xdata(
-                        [region_start + head_length, region_end]
-                    )
-            if partial_right:
-                make_gene_appear_truncated(gene_end, -1)
-                if gene_strand == 1:
-                    # Reduce the genome_line from right by an arrow head length
-                    genome_line[0].set_xdata(
-                        [region_start, region_end - head_length]
-                    )
-            gene_names.append(
-                ax.text(
-                    (gene_start + gene_end) / 2,
-                    arrow_y_loc - 0.05,
-                    feature.qualifiers.get("gene", [""])[0],
-                    ha="center",
-                    va="center_baseline",
-                    fontsize=8,
-                    transform=trans,
-                )
-            )
-
-    # Reduce the length of the genome line by 3 times the pixel length
-    # to prevent the line from touching the end of the plotted gene at render,
-    # especially when the gene is at the edge of the plot.
-    pixel_length = (region_end - region_start) / ax.get_window_extent().width
-    genome_line[0].set_xdata(
-        [
-            genome_line[0].get_xdata()[0] + 3 * pixel_length,
-            genome_line[0].get_xdata()[1] - 3 * pixel_length,
-        ]
-    )
-
-    if len(gene_names) > 10:
-        interval = len(gene_names) // 10
-        for i, gene_name in enumerate(gene_names):
-            if i % interval != 0:
-                gene_name.set_visible(False)
 
 
 def plot_pileup(

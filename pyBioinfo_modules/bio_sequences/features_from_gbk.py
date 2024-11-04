@@ -1,17 +1,17 @@
+import logging
 import os
+import re
 from pathlib import Path
 from typing import Literal
-import logging
 
 from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
-from Bio.Seq import Seq
 from Bio.Data.CodonTable import TranslationError
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from pyBioinfo_modules.basic.decompress import decompFileIfCompressed
-from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import (
-    GBK_EXTENSIONS,
-)
+from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import \
+    GBK_EXTENSIONS
 
 # Configure logging
 logging.basicConfig(
@@ -165,3 +165,69 @@ def getCdsFromGbk(gbkPath: Path, getIdFrom=None) -> Path:
     Extract CDS sequences from a GenBank file
     """
     return _getFeatureFromGbk(gbkPath, targetFeature="cds", getIdFrom=getIdFrom)
+
+
+def get_target_region(args, genome_with_annotation):
+    """
+    Determine the target region based on the provided arguments.
+    This function calculates the start and end positions of a target region
+    either based on a specified region or a gene with optional flanking regions.
+    Args:
+        args: An object containing the following attributes:
+            - region (str): A string specifying the region in the format "start-end".
+            - gene (str): The name of the gene to center the region around.
+            The above two arguments are mutually exclusive.
+            - flanking (int, optional): The number of base pairs to include on
+              either side of the gene.
+        genome_with_annotation: A BioRecord object containing annotated features.
+    Returns:
+        tuple: A tuple containing the start and end positions (0-based) of the
+        target region.
+    Raises:
+        ValueError: If the region format is invalid.
+    """
+
+    if args.region and args.flanking:
+        log.error("--flanking is only effective when --gene is provided.")
+    if args.gene and args.flanking is None:
+        args.flanking = 1500
+        log.warning(
+            f"--flanking is not provided, using default value: {args.flanking}"
+        )
+
+    if args.region:
+        # Parse the region
+        match = re.match(r"(\d+)-(\d+)", args.region.replace(",", ""))
+        if not match:
+            log.error(
+                "Invalid region format. Please provide a region in the format: "
+                "start-end"
+            )
+            raise ValueError("Invalid region format.")
+        tr_start, tr_end = match.groups()
+        tr_start, tr_end = int(tr_start) - 1, int(tr_end)
+        log.info(f"Region to plot: {tr_start + 1}-{tr_end}")
+    elif args.gene:
+        # Find the start of the gene
+        for feature in genome_with_annotation.features:
+            if (
+                feature.type == "gene"
+                and feature.qualifiers["gene"][0] == args.gene
+            ):
+                if feature.location.strand == -1:
+                    gene_start = int(feature.location.end)
+                else:
+                    gene_start = int(feature.location.start)
+                log.info(
+                    f"Gene {args.gene} found on strand "
+                    f"{feature.location.strand}, position: {gene_start}"
+                )
+                break
+        else:
+            log.error(f"Gene {args.gene} not found in the genome file.")
+        tr_start = max(0, gene_start - args.flanking - 1)
+        tr_end = min(len(genome_with_annotation), gene_start + args.flanking)
+        log.info(
+            f"Region with flanking region to plot: {tr_start + 1}-{tr_end}"
+        )
+    return tr_start, tr_end
