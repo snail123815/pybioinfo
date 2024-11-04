@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from pyBioinfo_modules.chipseq.macs import readComps, predictd, callPeak
+from pyBioinfo_modules.wrappers.macs import parse_comparison_file, macs_predictd, macs_callPeak
 
 parser = argparse.ArgumentParser(description="ChipSeq MACS3 Peak Calling")
 
@@ -61,13 +61,13 @@ doPredictd = args.predictd
 isPe = args.pairend
 extsize = args.extsize
 
-experimentDict = readComps(compFile, bamPath)
+experimentDict = parse_comparison_file(compFile, bamPath)
 if extsize==0:
     if doPredictd and not isPe:
-        fragsize = predictd(experimentDict, outputDir, gsize)
+        fragsize = macs_predictd(experimentDict, outputDir, gsize)
     else:
         fragsize = None
 else:
     fragsize = extsize
 
-callPeak(experimentDict, outputDir, gsize, isPe=isPe, fragsize=fragsize)
+macs_callPeak(experimentDict, outputDir, gsize, isPe=isPe, fragsize=fragsize)

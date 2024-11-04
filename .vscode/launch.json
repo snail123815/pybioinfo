@@ -8,13 +8,13 @@
             "name": "peak calling",
             "type": "debugpy",
             "request": "launch",
-            "program": "chipSeq_macs3_peak_calling.py",
+            "program": "chipSeq_macs_peak_calling.py",
             "console": "integratedTerminal",
             "args": [
                 "-b",
                 "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/alignments",
                 "-o",
-                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling",
+                "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling_t",
                 "--predictd",
                 "-c",
                 "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs_comparisons_002.txt"
