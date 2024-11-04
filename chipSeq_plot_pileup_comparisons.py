@@ -167,6 +167,7 @@ def get_target_region(args, genome_with_annotation):
                 "Invalid region format. Please provide a region in the format: "
                 "start-end"
             )
+            raise ValueError("Invalid region format.")
         tr_start, tr_end = match.groups()
         tr_start, tr_end = int(tr_start) - 1, int(tr_end)
         log.info(f"Region to plot: {tr_start + 1}-{tr_end}")
