@@ -60,16 +60,16 @@
 import argparse
 import logging
 import lzma
-import re
 from pathlib import Path
-from typing import TextIO
 
 import matplotlib.pyplot as plt
 import numpy as np
 from Bio import SeqIO
-from pyBioinfo_modules.chipseq.coverage import read_macs_pileup
+from Bio.SeqRecord import SeqRecord
+
 from pyBioinfo_modules.bio_sequences.features_from_gbk import get_target_region
 from pyBioinfo_modules.bio_sequences.plot_genes import plot_genes
+from pyBioinfo_modules.chipseq.coverage import read_macs_pileup
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -127,93 +127,31 @@ def arg_parser():
     return parser
 
 
-def read_input(args, tr_start, tr_end):
+def plot_macs_pileup(
+    ax: plt.Axes,
+    tr_control_data: np.ndarray,
+    tr_treat_data: np.ndarray,
+    tr_start: int,
+    tr_end: int,
+    do_logscale: bool = False,
+    genome_with_annotation: SeqRecord | None = None,
+) -> None:
     """
-    Reads and processes the input arguments for the chipSeq plot pileup
-    comparisons.
+    Plots the MACS pileup data for control and treatment samples on the
+    given axis.
 
-    Args:
-        args (argparse.Namespace): The parsed command-line arguments.
+    Parameters:
+    ax (matplotlib.axes.Axes): The axis to plot on.
+    tr_control_data (numpy.ndarray): The control data array with genomic positions and pileup values.
+    tr_treat_data (numpy.ndarray): The treatment data array with genomic positions and pileup values.
+    tr_start (int): The start position of the genomic region to plot.
+    tr_end (int): The end position of the genomic region to plot.
+    do_logscale (bool, optional): Whether to use a logarithmic scale for the y-axis. Default is False.
+    genome_with_annotation (dict, optional): A dictionary containing genome annotation data. Default is None.
 
     Returns:
-        (tr_control_data, tr_treat_data, genome_with_annotation,
-         tr_start, tr_end, do_logscale)
-    Raises:
-        ValueError: If the region format is invalid or the gene is not found
-        in the genome file.
-
-    The function performs the following steps:
-    1. Reads the genome file with annotations.
-    2. If a region is specified, it parses the region and extracts the start
-       and end positions.
-    3. If a gene is specified, it finds the gene in the genome annotations and
-       calculates the start and end positions based on the flanking region.
+    None
     """
-    # Find all matching files
-    pileup_files = [
-        file
-        for file in args.macsOutput.expanduser().glob("*.*")
-        if file.name.endswith(".bdg") or file.name.endswith(".bdg.xz")
-    ]
-
-    assert len(pileup_files) == 2, (
-        "There should be two and only two .bdg files in the macs output dir."
-        f" Found {len(pileup_files)} files." + str(pileup_files)
-    )
-
-    control_lambda_path = None
-    treat_pileup_path = None
-
-    for f in pileup_files:
-        if "_control_lambda" in f.name:
-            control_lambda_path = f
-        elif "_treat_pileup" in f.name:
-            treat_pileup_path = f
-        else:
-            raise ValueError(
-                "Unknown file: "
-                + f
-                + ". Expected either _control_lambda or _treat_pileup"
-            )
-
-    assert control_lambda_path, (
-        "Control pileup file not found. "
-        "Please make sure the file name contains '_control_lambda'."
-    )
-    assert treat_pileup_path, (
-        "Experimental pileup file not found. "
-        "Please make sure the file name contains '_treat_pileup'."
-    )
-
-    if control_lambda_path.suffix == ".xz":
-        control_lambda = lzma.open(control_lambda_path, "rt")
-    else:
-        control_lambda = open(control_lambda_path, "r")
-    if treat_pileup_path.suffix == ".xz":
-        treat_pileup = lzma.open(treat_pileup_path, "rt")
-    else:
-        treat_pileup = open(treat_pileup_path, "r")
-
-    tr_control_data = np.array(
-        read_macs_pileup(control_lambda, tr_start, tr_end)
-    )
-    tr_treat_data = np.array(read_macs_pileup(treat_pileup, tr_start, tr_end))
-    control_lambda.close()
-    treat_pileup.close()
-
-    return tr_control_data, tr_treat_data
-
-
-
-def plot_pileup(
-    ax,
-    tr_control_data,
-    tr_treat_data,
-    tr_start,
-    tr_end,
-    genome_with_annotation,
-    do_logscale,
-):
     # Plot control pileup
     ax.plot(
         tr_control_data[:, 0],
@@ -237,7 +175,8 @@ def plot_pileup(
     ax.spines["top"].set_visible(False)  # Hide the top spine
     ax.spines["right"].set_visible(False)  # Hide the right spine
 
-    plot_genes(ax, genome_with_annotation, tr_start, tr_end)
+    if genome_with_annotation:
+        plot_genes(ax, genome_with_annotation, tr_start, tr_end)
 
     ax.set_xlim(tr_start, tr_end)
     ax.set_xlabel("Genomic Position")
@@ -277,21 +216,20 @@ def __main__():
     genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
 
     tr_start, tr_end = get_target_region(args, genome_with_annotation)
-    (
-        tr_control_data,
-        tr_treat_data,
-    ) = read_input(args, tr_start, tr_end)
+    tr_control_data, tr_treat_data = read_macs_pileup(
+        args.macsOutput, tr_start, tr_end
+    )
 
     fig, ax = plt.subplots(figsize=(10, 4))
 
-    plot_pileup(
+    plot_macs_pileup(
         ax,
         tr_control_data,
         tr_treat_data,
         tr_start,
         tr_end,
-        genome_with_annotation,
-        args.logscale,
+        do_logscale=args.logscale,
+        genome_with_annotation=genome_with_annotation,
     )
     ax.set_title(args.title)
     fig.savefig(args.savefig, dpi=100)
