@@ -283,6 +283,15 @@ def plot_genes(
     # Gene x-axis position will be defined by gene location itself,
     # while y-axis position will be fixed to axes coordinate
     trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
+    ax.plot(
+        [region_start, region_end],
+        [arrow_y_loc, arrow_y_loc],
+        color="black",
+        linewidth=2,
+        transform=trans,
+        zorder=0,
+    )
+    gene_names = []
     for feature in genome_with_annotation.features:
         if feature.type == "gene":
             gene_start = feature.location.start
@@ -306,7 +315,7 @@ def plot_genes(
 
             # Define fixed head width and head length
             head_width = 0.05
-            head_length = 0.007 * xrange
+            head_length = min(abs(gene_end - gene_start), 0.007 * xrange)
 
             # Add arrowhead
             # Make sure the arrowhead is of the same size
@@ -324,6 +333,7 @@ def plot_genes(
                 linewidth=0,
                 facecolor=arrow_color,
                 transform=trans,
+                zorder=1,
             )
             ax.add_patch(arrow)
 
@@ -352,6 +362,7 @@ def plot_genes(
                         edgecolor=None,
                         facecolor=ax.get_facecolor(),
                         transform=trans,
+                        zorder=1,
                     )
                     ax.add_patch(rect)
 
@@ -360,15 +371,23 @@ def plot_genes(
             if partial_right:
                 make_gene_appear_truncated(gene_end, -1)
 
-            ax.text(
-                (gene_start + gene_end) / 2,
-                arrow_y_loc,
-                feature.qualifiers.get("gene", [""])[0],
-                ha="center",
-                va="center_baseline",
-                fontsize=8,
-                transform=trans,
+            gene_names.append(
+                ax.text(
+                    (gene_start + gene_end) / 2,
+                    arrow_y_loc - 0.05,
+                    feature.qualifiers.get("gene", [""])[0],
+                    ha="center",
+                    va="center_baseline",
+                    fontsize=8,
+                    transform=trans,
+                )
             )
+
+    if len(gene_names) > 10:
+        interval = len(gene_names) // 10
+        for i, gene_name in enumerate(gene_names):
+            if i % interval != 0:
+                gene_name.set_visible(False)
 
 
 def plot_pileup(
