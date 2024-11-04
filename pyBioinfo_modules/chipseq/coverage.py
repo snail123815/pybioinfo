@@ -4,6 +4,7 @@ import bz2
 from pandas import DataFrame
 import logging
 import pickle
+from typing import TextIO
 
 
 class CoverageData():
@@ -52,3 +53,27 @@ class CoverageData():
         with bz2.open(zipFile, 'wb') as zf:
             pickle.dump(coverageData, zf)
         return zipFile
+
+
+def read_macs_pileup(
+    pileup: TextIO, tr_start: int, tr_end: int
+) -> list[tuple[int, float]]:
+    # Read the pileup file, a range per line
+    tr_range_pileup = []
+    for line in pileup:
+        _, start, end, value = line.strip().split("\t")
+        end = int(end)
+        if end <= tr_start:
+            continue
+        start = int(start)
+        if start > tr_end:
+            break
+        value = float(value)
+        tr_range_pileup.append((start, end, value))
+    # Fill in the the range per base
+    tr_perbase_pileup = []
+    for start, end, value in tr_range_pileup:
+        effective_range = range(max(start, tr_start), min(end, tr_end + 1))
+        for i in effective_range:
+            tr_perbase_pileup.append((i, value))
+    return tr_perbase_pileup
