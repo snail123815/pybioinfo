@@ -428,22 +428,26 @@ def plot_pileup(
     ax.set_xlabel("Genomic Position")
 
     if do_logscale:
-        ax.set_yscale("log")
+        max_data = max(tr_control_data[:, 1].max(), tr_treat_data[:, 1].max())
         min_data = min(tr_control_data[:, 1].min(), tr_treat_data[:, 1].min())
+        ax.set_yscale("log")
         if min_data > 100:
             ymin = 100
         elif min_data > 10:
             ymin = 10
         else:
             ymin = 1
-        ax.set_ylim(ymin, ax.get_ylim()[1])
+        ymax = np.power(10, np.ceil(np.log10(max_data)))
+        ax.set_ylim(ymin, ymax)
     else:
+        ymax = ax.get_ylim()[1]
         ymin = 0
 
     ax.set_ylabel("Pileup")
+    ax.set_ylim(ymin, ymax)
     # Remove y-ticks below zero
-    yticks = ax.get_yticks()
-    ax.set_yticks([ytick for ytick in yticks if ytick >= ymin])
+    yticks = [t for t in ax.get_yticks() if t >= ymin and t <= ymax]
+    ax.set_yticks(yticks)
     ax.spines["bottom"].set_position(("data", ymin))
     # Remove the y-axis spine below x axis
     ax.spines["left"].set_bounds(ymin, ax.get_ylim()[1])
