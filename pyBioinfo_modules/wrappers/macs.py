@@ -2,10 +2,16 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from pyBioinfo_modules.wrappers._environment_settings import (
+    MACS_PROGRAM,
+    MACS_ENV,
+    SHELL,
+    CONDAEXE,
+    withActivateEnvCmd,
+)
 
-MACS_PROGRAM = "macs3"
 
-def predictd(experimentDict: Path, outputDir: Path, gsize):
+def macs_predictd(experimentDict: Path, outputDir: Path, gsize):
     expfiles = [experimentDict[e]["exp"] for e in experimentDict]
     # exps = [ef.stem for ef in expfiles]
     fragsizes = []
@@ -31,7 +37,12 @@ def predictd(experimentDict: Path, outputDir: Path, gsize):
         print("Running:")
         print(" ".join(argsPredictd))
         p1 = subprocess.Popen(
-            argsPredictd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            withActivateEnvCmd(
+                argsPredictd, condaEnv=MACS_ENV, condaExe=CONDAEXE, shell=SHELL
+            ),
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
         )
         while True:
             output = p1.stdout.readline()
@@ -80,7 +91,7 @@ def predictd(experimentDict: Path, outputDir: Path, gsize):
 # predictd
 
 
-def readComps(compFile: Path, bamPath: Path) -> dict[str:Path]:
+def parse_comparison_file(compFile: Path, bamPath: Path) -> dict[str:Path]:
     """
     name    ctr exp
     G24 G24C_G24C.sam   G24E_G24E.sam
@@ -115,7 +126,7 @@ def readComps(compFile: Path, bamPath: Path) -> dict[str:Path]:
     return experimentDict
 
 
-def callPeak(
+def macs_callPeak(
     experimentDict,
     outputDir,
     gsize,
