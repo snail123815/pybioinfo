@@ -90,29 +90,22 @@ def main(args):
 
     if not args.out.is_dir():
         args.out.mkdir(exist_ok=True)
-    log_file = args.out / "align.log"
-    file_handler_exists = any(
-        isinstance(handler, logging.FileHandler)
-        and handler.baseFilename == str(log_file)
-        for handler in logger.handlers
-    )
-    if not file_handler_exists:
-        log_file_handler = logging.FileHandler(log_file)
-        log_file_handler.setLevel(logging.DEBUG)
-        log_formatter = logging.Formatter(
+    
+    # Process loggers
+    log_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
-        log_file_handler.setFormatter(log_formatter)
-        logger.addHandler(log_file_handler)
-    console_handler_exists = any(
-        isinstance(handler, logging.StreamHandler) for handler in logger.handlers
-    )
-    if not console_handler_exists:
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        console_handler.setFormatter(log_formatter)
-        logger.addHandler(console_handler)
+    log_file = args.out / "align.log"
+    log_file_handler = logging.FileHandler(log_file)
+    log_file_handler.setLevel(logging.DEBUG)
+    log_file_handler.setFormatter(log_formatter)
+    logger.addHandler(log_file_handler)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(log_formatter)
+    logger.addHandler(console_handler)
 
+    # Start logic
     logger.info("=" * 20 + getTimeStr() + "=" * 20)
     logger.debug(args)
     if args.dryRun:

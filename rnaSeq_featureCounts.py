@@ -15,6 +15,8 @@ from pyBioinfo_modules.wrappers._environment_settings import (
     withActivateEnvCmd,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def arg_setup():
     parser = argparse.ArgumentParser()
@@ -62,15 +64,24 @@ def arg_setup():
     )
     return parser
 
+
 def main(args):
     args.output.mkdir(exist_ok=True)
-    logging.basicConfig(
-        filename=os.path.join(args.output, "!featureCounts.log"),
-        level=logging.DEBUG,
+    log_file = args.output / "!featureCounts.log"
+    log_file_handler = logging.FileHandler(log_file)
+    console_handler = logging.StreamHandler()
+    log_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-
+    log_file_handler.setLevel(logging.DEBUG)
+    log_file_handler.setFormatter(log_formatter)
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(log_formatter)
+    logger.addHandler(console_handler)
+    logger.addHandler(log_file_handler)
+    logger.addHandler(logging.StreamHandler())
     # convert gbk to gff
-    gffFile = NamedTemporaryFile("w+")
+    gffFile = args.output / "annotation.gff"
     # keep only selected features
     seqs = []
     for seq in SeqIO.parse(args.gbk, "genbank"):
@@ -104,23 +115,22 @@ def main(args):
                 f"Did not find any feature with type {args.targetFeature} "
                 f"and have qualifier {args.groupFactor}."
             )
-            logging.error(errmsg)
+            logger.error(errmsg)
             raise ValueError(errmsg)
         seqs.append(newSeq)
 
-    GFF.write(seqs, gffFile)
-    gffFile.seek(0)
-    gff = gffFile.name
-    logging.info("####### Head of gff file #######")
-    for i, l in enumerate(gffFile.readlines()):
-        if i > 30:
-            break
-        logging.info(l.strip())
-    logging.info("####### End head of gff ########")
-    gffFile.seek(0)
+    with gffFile.open('w+') as handle:
+        GFF.write(seqs, handle)
+        handle.seek(0)
+        logger.info("####### Head of gff file #######")
+        for i, l in enumerate(handle.readlines()):
+            if i > 30:
+                break
+            logger.info(l.strip())
+        logger.info("####### End head of gff ########")
 
     finalTs = time.time()
-    logging.info("=" * 20 + getTime() + "=" * 20)
+    logger.info("=" * 20 + getTime() + "=" * 20)
     files = [
         f for f in args.input.iterdir() if f.is_file() and f.suffix == ".bam"
     ]
@@ -133,7 +143,7 @@ def main(args):
     assert len(files) != 0
 
     for i, f in enumerate(files):
-        logging.info(f"Processing {i+1}/{len(files)}: ")
+        logger.info(f"Processing {i+1}/{len(files)}: ")
         ts = time.time()
         b = os.path.splitext(os.path.split(f)[-1])[0]
         cmdList = [
@@ -141,7 +151,7 @@ def main(args):
             "-T",
             str(args.ncpu),
             "-a",
-            gff,
+            str(gffFile),
             "-F",
             "GTF",
             "-t",
@@ -202,20 +212,19 @@ def main(args):
                     5, "-B"
                 )  # Only count read pairs that have both ends
                 # aligned. (must set together with -P)
-        logging.info(" ".join(cmdList))
+        logger.info(" ".join(cmdList))
         cmd = withActivateEnvCmd(" ".join(cmdList), SHORTREADS_ENV)
         res = subprocess.run(
             cmd, shell=True, capture_output=True, executable=SHELL
         )
         if res.returncode != 0:
-            logging.info(res.stdout.decode())
-            logging.info(res.stderr.decode())
+            logger.info(res.stdout.decode())
+            logger.info(res.stderr.decode())
             raise Exception
-        logging.info(res.stderr.decode())
-        logging.info(f"Finished in {diffTime(ts)}\n")
-    gffFile.close()
-    logging.info(f"All done, time elapsed {diffTime(finalTs)}")
-    logging.info("=" * 20 + getTime() + "=" * 20)
+        logger.info(res.stderr.decode())
+        logger.info(f"Finished in {diffTime(ts)}\n")
+    logger.info(f"All done, time elapsed {diffTime(finalTs)}")
+    logger.info("=" * 20 + getTime() + "=" * 20)
 
 
 def getTime():
