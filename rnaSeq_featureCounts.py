@@ -6,7 +6,7 @@ import argparse
 import logging
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from Bio.SeqFeature import SeqFeature
+from Bio.SeqFeature import SeqFeature, FeatureLocation, ExactPosition
 from BCBio import GFF
 from pathlib import Path
 from pyBioinfo_modules.wrappers._environment_settings \
@@ -76,8 +76,17 @@ def main():
         for feat in seq.features:
             if feat.type in args.targetFeature.split(
                     ',') and args.groupFactor in feat.qualifiers:
+                start = feat.location.start
+                end = feat.location.end
+                # Convert start and end to ExactPosition if they are not already
+                # This is because featureCounts does not accept otherwise
+                if not isinstance(start, ExactPosition):
+                    start = ExactPosition(int(start))
+                if not isinstance(end, ExactPosition):
+                    end = ExactPosition(int(end))
                 newFeat = SeqFeature(
-                    location=feat.location,
+                    location=FeatureLocation(start=start, end=end,
+                                           strand=feat.location.strand),
                     type=feat.type,
                     id=feat.id,
                 )
@@ -94,10 +103,11 @@ def main():
     gff = gffFile.name
     logging.info('####### Head of gff file #######')
     for i, l in enumerate(gffFile.readlines()):
-        if i > 10:
+        if i > 30:
             break
         logging.info(l.strip())
     logging.info('####### End head of gff ########')
+    gffFile.seek(0)
 
     finalTs = time.time()
     logging.info('=' * 20 + getTime() + '=' * 20)
