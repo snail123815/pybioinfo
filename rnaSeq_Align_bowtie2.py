@@ -60,7 +60,9 @@ def arg_setup():
 
 
 def get_read_files_per_sample(
-    parent_dir: list[Path], sample_names: list[str] | None = None, isPe: bool = False
+    parent_dir: list[Path],
+    sample_names: list[str] | None = None,
+    isPe: bool = False,
 ) -> tuple[dict[str, list[Path]], list[str], str]:
     # Gether all files, max depth 2
     file_paths: list[Path] = []
@@ -74,7 +76,7 @@ def get_read_files_per_sample(
         ext = splitStemSuffixIfCompressed(f)[1]
         if len(ext.split(".")) < 2 or ext.split(".")[1] not in ["fastq", "fq"]:
             file_paths.remove(f)
-    assert len(file_paths) > 0, f"Files not found in {args.raw}"
+    assert len(file_paths) > 0, f"Files not found in {parent_dir}"
     file_paths = sorted(file_paths)
     file_parts = [
         splitStemSuffixIfCompressed(f, fullSuffix=True) for f in file_paths
@@ -132,45 +134,38 @@ def get_read_files_per_sample(
     return sample_file_dict, peSfx, file_fullexts[0]
 
 
-def main(args):
-    # Gether all files, max depth 2
-    # Process loggers
-    log_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    log_file = args.out / "align.log"
-    log_file_handler = logging.FileHandler(log_file)
-    log_file_handler.setFormatter(log_formatter)
-    logger.addHandler(log_file_handler)
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(log_formatter)
-    logger.addHandler(console_handler)
-    logger.setLevel(logging.DEBUG)
-
+def align_multiple_raw_bowtie2(
+    raw: list[Path],
+    sampleNames: list[str] | None,
+    out: Path,
+    isPe: bool,
+    genomes: list[Path],
+    ncpu: int,
+    dryRun: bool,
+):
     # Start logic
     logger.info("=" * 20 + getTimeStr() + "=" * 20)
-    logger.debug(args)
-    if args.dryRun:
+    if dryRun:
         logger.debug("=" * 20 + "Dry run, will not execute bowtie2")
 
     tInit = time.time()
 
     sample_file_dict, peSfx, file_fullext = get_read_files_per_sample(
-        args.raw, args.sampleNames, args.isPe
+        raw, sampleNames, isPe
     )
     samples = sorted(list(sample_file_dict.keys()))
     logger.info(f"Samples to process: {samples}")
 
-    if not args.out.is_dir():
-        args.out.mkdir(exist_ok=True)
+    if not out.is_dir():
+        out.mkdir(exist_ok=True)
 
-    genomeBowtie2Idx = buildBowtie2idx(args.genome, out=args.out / "genomeIdx")
+    genomeBowtie2Idx = buildBowtie2idx(genomes, out=out / "genomeIdx")
 
     for i, (s, fps) in enumerate(sample_file_dict.items()):
         logger.info(f"Processing {i+1}/{len(samples)}: {s}")
 
         # prepare align arguments
-        if args.isPe:
+        if isPe:
             assert len(peSfx) == 2
             samples1: list[Path] = []
             samples2: list[Path] = []
@@ -189,26 +184,25 @@ def main(args):
             assert len(samples1) == len(samples2) and len(samples1) > 0
             runBowtie2(
                 genomeBowtie2Idx,
-                outPut=args.out,
+                outPut=out,
                 peFiles1=samples1,
                 peFiles2=samples2,
                 sample=s,
-                ncpu=args.ncpu,
-                dryRun=args.dryRun,
+                ncpu=ncpu,
+                dryRun=dryRun,
             )
         else:
             runBowtie2(
                 genomeBowtie2Idx,
-                outPut=args.out,
+                outPut=out,
                 unpairedFiles=fps,
                 sample=s,
-                ncpu=args.ncpu,
-                dryRun=args.dryRun,
+                ncpu=ncpu,
+                dryRun=dryRun,
             )
 
     logger.info(f"All done, time elapsed {timeDiffStr(tInit)}")
     logger.info("=" * 20 + getTimeStr() + "=" * 20 + "\n" * 2)
-    logger.handlers.clear()
 
 
 def imputePeSuffix(rawFileNames: list[str], peSfx: list[str] = []):
@@ -232,7 +226,36 @@ def imputePeSuffix(rawFileNames: list[str], peSfx: list[str] = []):
     raise ValueError(f"pair end suffix not found in {rawFileNames}")
 
 
-if __name__ == "__main__":
+def main():
     parser = arg_setup()
     args = parser.parse_args()
-    main(args)
+
+    # Process loggers
+    log_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    log_file = args.out / "align.log"
+    log_file_handler = logging.FileHandler(log_file)
+    log_file_handler.setFormatter(log_formatter)
+    logger.addHandler(log_file_handler)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    logger.addHandler(console_handler)
+    logger.setLevel(logging.DEBUG)
+
+    logger.debug(args)
+    align_multiple_raw_bowtie2(
+        raw=args.raw,
+        genomes=args.genome,
+        out=args.out,
+        isPe=args.isPe,
+        sampleNames=args.sampleNames,
+        ncpu=args.ncpu,
+        dryRun=args.dryRun,
+    )
+
+    logger.handlers.clear()
+
+
+if __name__ == "__main__":
+    main()

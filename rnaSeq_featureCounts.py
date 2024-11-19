@@ -67,9 +67,19 @@ def arg_setup():
     return parser
 
 
-def main(args):
-    args.output.mkdir(exist_ok=True)
-    log_file = args.output / "!featureCounts.log"
+def multiple_featureCounts(
+    input_path: Path,
+    output_path: Path,
+    gbk_path: Path,
+    ncpu: int,
+    isPe: bool,
+    targetFeature: str,
+    groupFactor: str,
+    fractionCounting: bool,
+    peLoose: bool,
+):
+    output_path.mkdir(exist_ok=True)
+    log_file = output_path / "!featureCounts.log"
     log_file_handler = logging.FileHandler(log_file)
     # console_handler = logging.StreamHandler(stream=sys.stdout)
     console_handler = logging.StreamHandler()
@@ -82,17 +92,17 @@ def main(args):
     logger.addHandler(log_file_handler)
     logger.setLevel(logging.DEBUG)
     # convert gbk to gff
-    gffFile = args.output / "annotation.gff"
+    gffFile = output_path / "annotation.gff"
     # keep only selected features
     seqs = []
-    for seq in SeqIO.parse(args.gbk, "genbank"):
+    for seq in SeqIO.parse(gbk_path, "genbank"):
         newSeq = SeqRecord(Seq(""), id=seq.id)
         for feat in seq.features:
             if (
-                feat.type in args.targetFeature.split(",")
-                and args.groupFactor in feat.qualifiers
+                feat.type in targetFeature.split(",")
+                and groupFactor in feat.qualifiers
             ):
-                if feat.qualifiers[args.groupFactor][0] == "none":
+                if feat.qualifiers[groupFactor][0] == "none":
                     continue
                 start = feat.location.start
                 end = feat.location.end
@@ -109,20 +119,18 @@ def main(args):
                     type=feat.type,
                     id=feat.id,
                 )
-                newFeat.qualifiers[args.groupFactor] = feat.qualifiers[
-                    args.groupFactor
-                ]
+                newFeat.qualifiers[groupFactor] = feat.qualifiers[groupFactor]
                 newSeq.features.append(newFeat)
         if len(newSeq.features) == 0:
             errmsg = (
-                f"Did not find any feature with type {args.targetFeature} "
-                f"and have qualifier {args.groupFactor}."
+                f"Did not find any feature with type {targetFeature} "
+                f"and have qualifier {groupFactor}."
             )
             logger.error(errmsg)
             raise ValueError(errmsg)
         seqs.append(newSeq)
 
-    with gffFile.open('w+') as handle:
+    with gffFile.open("w+") as handle:
         GFF.write(seqs, handle)
         handle.seek(0)
         logger.info("####### Head of gff file #######")
@@ -135,12 +143,12 @@ def main(args):
     finalTs = time.time()
     logger.info("=" * 20 + getTime() + "=" * 20)
     files = [
-        f for f in args.input.iterdir() if f.is_file() and f.suffix == ".bam"
+        f for f in input_path.iterdir() if f.is_file() and f.suffix == ".bam"
     ]
     if len(files) == 0:
         files = [
             f
-            for f in args.input.iterdir()
+            for f in input_path.iterdir()
             if f.is_file() and f.suffix == ".sam"
         ]
     assert len(files) != 0
@@ -152,15 +160,15 @@ def main(args):
         cmdList = [
             "featureCounts",
             "-T",
-            str(args.ncpu),
+            str(ncpu),
             "-a",
             str(gffFile),
             "-F",
             "GTF",
             "-t",
-            args.targetFeature,
+            targetFeature,
             "-g",
-            args.groupFactor,
+            groupFactor,
             "--minOverlap",
             "20",  # Minimum number of overlapping bases in a read that is
             # required for read assignment. 1 by default. Number of
@@ -176,10 +184,10 @@ def main(args):
             # and '--minOverlap' option need to be satisfied for read
             # assignment.
             "-o",
-            str(args.output / f"{b}.txt"),
+            str(output_path / f"{b}.txt"),
             str(f),
         ]
-        if args.fractionCounting:
+        if fractionCounting:
             # Multi-mapping reads will also be counted. For a multi-
             cmdList.insert(3, "-M")
             # mapping read, all its reported alignments will be
@@ -201,13 +209,13 @@ def main(args):
             cmdList.insert(5, "-O")
             # features if -f is specified).
 
-        if args.isPe:
+        if isPe:
             # If specified, fragments (or templates) will be counted
             cmdList.insert(3, "-p")
             # instead of reads. This option is only applicable for
             # paired-end reads; single-end reads are always counted as
             # reads.
-            if not args.peLoose:
+            if not peLoose:
                 # Check validity of paired-end distance when counting read
                 cmdList.insert(4, "-P")
                 # pairs. Use -d and -D to set thresholds.
@@ -240,7 +248,21 @@ def diffTime(a):
     return str(h).zfill(2) + time.strftime(":%M:%S", time.gmtime(d))
 
 
-if __name__ == "__main__":
+def main():
     parser = arg_setup()
     args = parser.parse_args()
-    main(args)
+    multiple_featureCounts(
+        input_path=args.input,
+        output_path=args.output,
+        gbk_path=args.gbk,
+        ncpu=args.ncpu,
+        isPe=args.isPe,
+        targetFeature=args.targetFeature,
+        groupFactor=args.groupFactor,
+        fractionCounting=args.fractionCounting,
+        peLoose=args.peLoose,
+    )
+
+
+if __name__ == "__main__":
+    main()
