@@ -97,13 +97,12 @@ def main(args):
         )
     log_file = args.out / "align.log"
     log_file_handler = logging.FileHandler(log_file)
-    log_file_handler.setLevel(logging.DEBUG)
     log_file_handler.setFormatter(log_formatter)
     logger.addHandler(log_file_handler)
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(log_formatter)
     logger.addHandler(console_handler)
+    logger.setLevel(logging.DEBUG)
 
     # Start logic
     logger.info("=" * 20 + getTimeStr() + "=" * 20)

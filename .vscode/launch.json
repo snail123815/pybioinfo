@@ -86,6 +86,29 @@
                 "--isPe",
                 "--dryRun"
             ]
+        },
+        {
+            "name": "RNA-Seq Feature Counts",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "rnaSeq_featureCounts.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--input",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/alignment",
+                "--output",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/counts",
+                "--gbk",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/M145_assembly_AL645882.gb",
+                "--ncpu",
+                "10",
+                "--isPe",
+                "--targetFeature",
+                "gene",
+                "--groupFactor",
+                "gene",
+                "--fractionCounting"
+            ]
         }
     ]
 }

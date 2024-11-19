@@ -4,8 +4,10 @@ import os
 import time
 import argparse
 import logging
+import sys
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
 from Bio.SeqFeature import SeqFeature, FeatureLocation, ExactPosition
 from BCBio import GFF
 from pathlib import Path
@@ -69,28 +71,29 @@ def main(args):
     args.output.mkdir(exist_ok=True)
     log_file = args.output / "!featureCounts.log"
     log_file_handler = logging.FileHandler(log_file)
+    # console_handler = logging.StreamHandler(stream=sys.stdout)
     console_handler = logging.StreamHandler()
     log_formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    log_file_handler.setLevel(logging.DEBUG)
     log_file_handler.setFormatter(log_formatter)
-    console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(log_formatter)
     logger.addHandler(console_handler)
     logger.addHandler(log_file_handler)
-    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
     # convert gbk to gff
     gffFile = args.output / "annotation.gff"
     # keep only selected features
     seqs = []
     for seq in SeqIO.parse(args.gbk, "genbank"):
-        newSeq = SeqRecord("", id=seq.id)
+        newSeq = SeqRecord(Seq(""), id=seq.id)
         for feat in seq.features:
             if (
                 feat.type in args.targetFeature.split(",")
                 and args.groupFactor in feat.qualifiers
             ):
+                if feat.qualifiers[args.groupFactor][0] == "none":
+                    continue
                 start = feat.location.start
                 end = feat.location.end
                 # Convert start and end to ExactPosition if they are not already
