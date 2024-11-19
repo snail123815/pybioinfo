@@ -69,7 +69,7 @@
             ]
         },
         {
-            "name": "RNA-Seq Alignment",
+            "name": "RNA-Seq Alignment dry",
             "type": "debugpy",
             "request": "launch",
             "program": "rnaSeq_Align_bowtie2.py",
