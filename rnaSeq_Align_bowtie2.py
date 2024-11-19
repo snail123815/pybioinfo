@@ -11,7 +11,7 @@ from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
 from pyBioinfo_modules.wrappers.bowtie2 import buildBowtie2idx, runBowtie2
 
 
-def main():
+def arg_setup():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--raw',
@@ -34,13 +34,11 @@ def main():
         '--isPe',
         action='store_true',
         help='set if you have pairend')
-
     parser.add_argument(
         '--pesuffix',
         nargs=2,
         help=('suffix to pairend file name. Will impute by default.'
               ' eg. a_1_.fq.gz and a_2_.fq.gz, --pesuffix _1_ _2_'))
-
     parser.add_argument(
         '--ncpu',
         default=1,
@@ -52,9 +50,9 @@ def main():
         help=('List of sample names.'
               ' Set when sample names are random string'
               ' which will unpair the samples after removing pairend suffix'))
+    return parser
 
-    args = parser.parse_args()
-
+def main(args):
     # Gether all files, max depth 2
     filePaths: list[Path] = []
     for d in args.raw:
@@ -192,4 +190,6 @@ def imputePeSuffix(
 
 
 if __name__ == "__main__":
-    main()
+    parser = arg_setup()
+    args = parser.parse_args()
+    main(args)
