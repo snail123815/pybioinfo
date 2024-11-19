@@ -67,6 +67,25 @@
                 "SCO1839",
                 // "SCO5085",
             ]
+        },
+        {
+            "name": "RNA-Seq Alignment",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "rnaSeq_Align_bowtie2.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--raw",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/data_release/",
+                "--out",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/alignment",
+                "--genome",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/M145_assembly_AL645882.fasta",
+                "--ncpu",
+                "10",
+                "--isPe",
+                "--dryRun"
+            ]
         }
     ]
 }

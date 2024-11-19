@@ -85,6 +85,7 @@ def runBowtie2(
     unpairedFiles:  list[Path] = [],
     sample: str = '',
     ncpu: int = 2,
+    dryRun: bool = False
 ):
     ts = time.time()
     allFiles = peFiles1 + peFiles2 + unpairedFiles
@@ -131,6 +132,8 @@ def runBowtie2(
 
         # Start running both
         cmd = withActivateEnvCmd(' '.join(cmdList), SHORTREADS_ENV)
+        if dryRun:
+            return
         result = subprocess.run(cmd, shell=True,
                                 capture_output=True, executable=SHELL)
         if result.returncode != 0:
