@@ -1,10 +1,14 @@
 import subprocess
 import sys
+import logging
 from pathlib import Path
 import shutil
 
 from pyBioinfo_modules.wrappers._environment_settings \
     import CONDAEXE, SHELL, BIGSCAPE_ENV, PFAM_DB, withActivateEnvCmd
+
+
+logger = logging.getLogger(__name__)
 
 try:
     if BIGSCAPE_ENV is None:
@@ -15,6 +19,39 @@ try:
         bigscapeExe = next((BIGSCAPE_ENV / 'bin').glob('bigscape*')).resolve()
 except (IndexError, StopIteration):
     raise FileNotFoundError('bigscape executable not found.')
+
+
+def get_bigscape_version(
+    bigscape_exe=bigscapeExe,
+    condaexe=CONDAEXE,
+    bigscape_env=BIGSCAPE_ENV,
+    shell=SHELL,
+) -> str:
+    logger.info("Getting BiG-SCAPE version")
+    logger.debug(f"bigscape_exe: {bigscape_exe}")
+    logger.debug(f"condaexe: {condaexe}")
+    logger.debug(f"bigscape_env: {bigscape_env}")
+    logger.debug(f"shell: {shell}")
+    cmd = withActivateEnvCmd(
+        f"{bigscape_exe} --version", bigscape_env, condaexe, shell
+    )
+    logger.debug(f"cmd: {cmd}")
+    version_run = subprocess.run(
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        executable=shell,
+    )
+    version_split = version_run.stdout.decode().strip().split(" ")
+    version = " ".join(version_split)
+    date = None
+    if version_split[0].lower() in ["BiG-SCAPE".lower(), "bigscape"]:
+        version = version_split[1]
+    if len(version_split) == 3:
+        date = version_split[2]
+    logger.info(f"BiG-SCAPE version: {version}, {date}")
+    return version, date
 
 
 def runBigscape(
