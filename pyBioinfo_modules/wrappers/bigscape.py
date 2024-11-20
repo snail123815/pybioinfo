@@ -5,7 +5,12 @@ import sys
 from pathlib import Path
 
 from pyBioinfo_modules.wrappers._environment_settings import (
-    BIGSCAPE_ENV, CONDAEXE, PFAM_DB, SHELL, withActivateEnvCmd)
+    BIGSCAPE_ENV,
+    CONDAEXE,
+    PFAM_DB,
+    SHELL,
+    withActivateEnvCmd,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +69,6 @@ def runBigscape(
     cutoffs: list[float] = [
         0.2,
     ],
-    silent: bool = True,
     bigscapeEnv=BIGSCAPE_ENV,
     pfamDb=PFAM_DB,
     condaExe=CONDAEXE,
@@ -81,26 +85,17 @@ def runBigscape(
         cmd += " --verbose"
     cmd += f" -i {inputPath}"
     cmd += f" -o {outputPath}"
-    # print(withActivateEnvCmd(cmd, bigscapeEnv, condaExe, shell))
-    try:
-        if silent:
-            bigscapeRun = subprocess.run(
-                withActivateEnvCmd(cmd, bigscapeEnv, condaExe, shell),
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                executable=shell,
-            )
-        else:
-            bigscapeRun = subprocess.run(
-                withActivateEnvCmd(cmd, bigscapeEnv, condaExe, shell),
-                shell=True,
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                executable=shell,
-            )
 
-    except subprocess.CalledProcessError:
-        print(bigscapeRun.stdout.decode())
-        print(bigscapeRun.stderr.decode())
+    bigscapeRun = subprocess.run(
+        withActivateEnvCmd(cmd, bigscapeEnv, condaExe, shell),
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        executable=shell,
+    )
+    if bigscapeRun.returncode != 0:
+        logger.warning(bigscapeRun.stdout.decode())
+    else:
+        logger.info(bigscapeRun.stdout.decode())
+        logger.info(f"BiG-SCAPE finished successfully")
     return outputPath

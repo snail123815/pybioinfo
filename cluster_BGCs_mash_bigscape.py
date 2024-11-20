@@ -154,7 +154,6 @@ def main():
             representativeGbksDir, bigscapeOutput,
             cpus=args.cpus,
             cutoffs=[0.2, ],
-            silent=False,
             verbose=args.verboseBigscape
         )
 
