@@ -1,14 +1,17 @@
-from pathlib import Path
 import logging
-from tempfile import NamedTemporaryFile
-from Bio import SeqIO
-from typing import IO
-from pyBioinfo_modules.basic.basic import getTimeStr
-from pyBioinfo_modules.wrappers._environment_settings \
-    import SHORTREADS_ENV, SHELL, withActivateEnvCmd
 import subprocess
 import time
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import IO
+
+from Bio import SeqIO
+
 from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
+from pyBioinfo_modules.basic.parse_raw_read_dir import \
+    get_read_files_per_sample
+from pyBioinfo_modules.wrappers._environment_settings import (
+    SHELL, SHORTREADS_ENV, withActivateEnvCmd)
 
 logger = logging.getLogger(__name__)
 
@@ -145,3 +148,82 @@ def runBowtie2(
         logger.info(result.stderr.decode())
         logger.info(f'Finished in {timeDiffStr(ts)}\n')
         targetFinishedFlag.touch()
+
+
+def multiple_raw_align_bowtie2(
+    raw: list[Path],
+    sampleNames: list[str] | None,
+    out: Path,
+    isPe: bool,
+    genomes: list[Path],
+    ncpu: int,
+    dryRun: bool,
+):
+    # Start logic
+    logger.addHandler(logging.FileHandler(out / "align.log"))
+    logger.info("=" * 20 + getTimeStr() + "=" * 20)
+    if dryRun:
+        logger.debug("=" * 20 + "Dry run, will not execute bowtie2")
+
+    tInit = time.time()
+
+    sample_file_dict, peSfx, file_fullext = get_read_files_per_sample(
+        raw, sampleNames, isPe
+    )
+    samples = sorted(list(sample_file_dict.keys()))
+    logger.info(f"Samples to process: {samples}")
+
+    if not out.is_dir():
+        out.mkdir(exist_ok=True)
+
+    genomeBowtie2Idx = buildBowtie2idx(genomes, out=out / "genomeIdx")
+
+    for i, (s, fps) in enumerate(sample_file_dict.items()):
+        logger.info(f"Processing {i+1}/{len(samples)}: {s}")
+
+        # prepare align arguments
+        if isPe:
+            assert len(peSfx) == 2
+            samples1: list[Path] = []
+            samples2: list[Path] = []
+            for fp in fps:
+                suffex_len_with_pe: int = len(file_fullext) + len(peSfx[0])
+                for j in range(suffex_len_with_pe, len(fp.name)):
+                    if any(sfx in fp.name[-j:] for sfx in peSfx):
+                        suffex_len_with_pe = j
+                        break
+                if peSfx[0] in fp.name[-suffex_len_with_pe:]:
+                    samples1.append(fp)
+                elif peSfx[1] in fp.name[-suffex_len_with_pe:]:
+                    samples2.append(fp)
+                else:
+                    raise ValueError(f"File {fp} not bound to PE {peSfx}")
+            assert len(samples1) == len(samples2) and len(samples1) > 0
+            runBowtie2(
+                genomeBowtie2Idx,
+                outPut=out,
+                peFiles1=samples1,
+                peFiles2=samples2,
+                sample=s,
+                ncpu=ncpu,
+                dryRun=dryRun,
+            )
+        else:
+            runBowtie2(
+                genomeBowtie2Idx,
+                outPut=out,
+                unpairedFiles=fps,
+                sample=s,
+                ncpu=ncpu,
+                dryRun=dryRun,
+            )
+
+    logger.info(f"All done, time elapsed {timeDiffStr(tInit)}")
+    logger.info("=" * 20 + getTimeStr() + "=" * 20 + "\n" * 2)
+    # Remove logger handler with path "out / align.log"
+    for handler in logger.handlers[:]:
+        if isinstance(
+            handler, logging.FileHandler
+        ) and handler.baseFilename == str(out / "align.log"):
+            logger.removeHandler(handler)
+            handler.close()

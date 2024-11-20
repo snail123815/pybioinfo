@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 from Bio import SeqIO
-from rnaSeq_Align_bowtie2 import multiple_raw_align_bowtie2
+from pyBioinfo_modules.wrappers.bowtie2 import multiple_raw_align_bowtie2
 from rnaSeq_featureCounts import multiple_featureCounts
 
 logging.basicConfig(
