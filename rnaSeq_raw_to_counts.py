@@ -1,8 +1,8 @@
-import time
 import argparse
 import logging
 from pathlib import Path
-from rnaSeq_Align_bowtie2 import align_multiple_raw_bowtie2
+from Bio import SeqIO
+from rnaSeq_Align_bowtie2 import multiple_raw_align_bowtie2
 from rnaSeq_featureCounts import multiple_featureCounts
 
 logging.basicConfig(
@@ -13,6 +13,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -70,12 +71,53 @@ def parse_args():
     return parser.parse_args()
 
 def main(args):
-    pass
+    args.out.mkdir(exist_ok=True, parents=True)
+    alignment_output_path = args.out/"alignment"
+    # convert gbk to fasta
+    fna_file = args.out/(args.gbk.stem+".fna")
+    if not fna_file.exists():
+        logger.info(f"Converting {args.gbk} to fasta")
+        SeqIO.write(SeqIO.parse(args.gbk, "genbank"), fna_file, "fasta")
+    logger.info(f"Genome fasta file: {fna_file}")
+    logger.info(f"Alignment output path: {alignment_output_path}")
+    logger.info(f"Raw data: {args.raw}")
+    logger.info(f"Number of CPUs: {args.ncpu}")
+    logger.info(f"Is pairend: {args.isPe}")
+    logger.info("Running bowtie2 alignment")
+    multiple_raw_align_bowtie2(
+        raw = args.raw,
+        sampleNames=None,
+        out=alignment_output_path,
+        genomes=[fna_file],
+        isPe=args.isPe,
+        ncpu=args.ncpu,
+        dryRun=args.dryRun,
+    )
+    logger.info("Alignment done")
+
+    counts_output_path = args.out/"counts"
+    logger.info(f"Counts output path: {args.out/'counts'}")
+    logger.info(f"Target feature: {args.targetFeature}")
+    logger.info(f"Group factor: {args.groupFactor}")
+    logger.info(f"Fraction counting: {args.fractionCounting}")
+    logger.info(f"Pairend loose: {args.peLoose}")
+    logger.info("Running featureCounts")
+    multiple_featureCounts(
+        input_path=alignment_output_path,
+        output_path=counts_output_path,
+        gbk_path=args.gbk,
+        ncpu=args.ncpu,
+        isPe=args.isPe,
+        targetFeature=args.targetFeature,
+        groupFactor=args.groupFactor,
+        fractionCounting=args.fractionCounting,
+        peLoose=args.peLoose,
+        dryRun=args.dryRun,
+    )
+    logger.info("FeatureCounts done")
 
 if __name__ == "__main__":
     args = parse_args()
-    align_args = args
 
-    count_args = args
     main(args)
 

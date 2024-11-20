@@ -109,6 +109,31 @@
                 "gene",
                 "--fractionCounting"
             ]
+        },
+        {
+            "name": "RNA-Seq Raw to Counts",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "rnaSeq_raw_to_counts.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--raw",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/data_release/",
+                "--out",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/output",
+                "--gbk",
+                "~/data/Coll.Labmates/Proj.Transciptomics_Anna_M145_JA_MMliquid/M145_assembly_AL645882.gb",
+                "--ncpu",
+                "10",
+                "--isPe",
+                "--targetFeature",
+                "gene",
+                "--groupFactor",
+                "gene",
+                "--fractionCounting",
+                "--peLoose",
+                "--dryRun"
+            ]
         }
     ]
 }

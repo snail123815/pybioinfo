@@ -1,10 +1,8 @@
 import subprocess
-from tempfile import NamedTemporaryFile
 import os
 import time
 import argparse
 import logging
-import sys
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
@@ -77,20 +75,12 @@ def multiple_featureCounts(
     groupFactor: str,
     fractionCounting: bool,
     peLoose: bool,
+    dryRun: bool = False,
 ):
     output_path.mkdir(exist_ok=True)
     log_file = output_path / "!featureCounts.log"
     log_file_handler = logging.FileHandler(log_file)
-    # console_handler = logging.StreamHandler(stream=sys.stdout)
-    console_handler = logging.StreamHandler()
-    log_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    log_file_handler.setFormatter(log_formatter)
-    console_handler.setFormatter(log_formatter)
-    logger.addHandler(console_handler)
     logger.addHandler(log_file_handler)
-    logger.setLevel(logging.DEBUG)
     # convert gbk to gff
     gffFile = output_path / "annotation.gff"
     # keep only selected features
@@ -151,7 +141,13 @@ def multiple_featureCounts(
             for f in input_path.iterdir()
             if f.is_file() and f.suffix == ".sam"
         ]
-    assert len(files) != 0
+    if dryRun:
+        if len(files) == 0:
+            logger.info(
+                f"Dry run: No files found in {input_path}, will mimic some."
+            )
+            files = [input_path / "file1.bam", input_path / "file2.bam"]
+    assert len(files) != 0, input_path
 
     for i, f in enumerate(files):
         logger.info(f"Processing {i+1}/{len(files)}: ")
@@ -225,6 +221,10 @@ def multiple_featureCounts(
                 # aligned. (must set together with -P)
         logger.info(" ".join(cmdList))
         cmd = withActivateEnvCmd(" ".join(cmdList), SHORTREADS_ENV)
+        if dryRun:
+            logger.info("Dry run, not executing command")
+            logger.info(cmd)
+            continue
         res = subprocess.run(
             cmd, shell=True, capture_output=True, executable=SHELL
         )
@@ -251,6 +251,9 @@ def diffTime(a):
 def main():
     parser = arg_setup()
     args = parser.parse_args()
+    console_handler = logging.StreamHandler()
+    logger.addHandler(console_handler)
+    logger.setLevel(logging.DEBUG)
     multiple_featureCounts(
         input_path=args.input,
         output_path=args.output,

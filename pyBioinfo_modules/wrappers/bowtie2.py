@@ -10,6 +10,8 @@ import subprocess
 import time
 from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
 
+logger = logging.getLogger(__name__)
+
 def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
     fs = [f.resolve() for f in fs]
     out = out.resolve()
@@ -17,7 +19,7 @@ def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
     # check if idx file exists
     genomePath = fs[0].parent
     genomeName = fs[0].stem
-    logging.info(f'genome name: {genomeName}')
+    logger.info(f'genome name: {genomeName}')
 
     out.mkdir(exist_ok=True)
     bt2_base = ('_'.join(f.stem for f in fs) if name is None else name)
@@ -25,7 +27,7 @@ def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
 
     if any((Path(str(outIdxForUse) + '.1.bt2').is_file(),
             Path(str(outIdxForUse) + '.1.bt21').is_file())):
-        logging.info(
+        logger.info(
             'Found index file, will not make new ones.\n'
             f'{str(list(out.glob(bt2_base + "*"))[0])}')
         return outIdxForUse
@@ -43,17 +45,17 @@ def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
                     newFps.append(Path(newF.name))
                     tempFiles.append(newF)  # for closing these files later
         except Exception as err:
-            logging.error(f'Unexpected error {err=}, {type(err)=}')
+            logger.error(f'Unexpected error {err=}, {type(err)=}')
             raise
         fs = newFps
 
-    logging.info('-' * 20 + 'Indexing genome ' + getTimeStr() + '-' * 20)
+    logger.info('-' * 20 + 'Indexing genome ' + getTimeStr() + '-' * 20)
     cmdList = [
         'bowtie2-build',
         ','.join(str(f) for f in fs),
         str(out / bt2_base),
     ]
-    logging.info(' '.join(cmdList))
+    logger.info(' '.join(cmdList))
     cmd = withActivateEnvCmd(' '.join(cmdList), SHORTREADS_ENV)
     result = subprocess.run(cmd, capture_output=True,
                             shell=True, executable=SHELL)
@@ -61,9 +63,9 @@ def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
     if result.returncode != 0 or not any(
         (Path(str(outIdxForUse) + '.1.bt2').is_file(),
          Path(str(outIdxForUse) + '.1.bt21').is_file())):
-        logging.info('stderr: ' + result.stderr.decode())
-        logging.info('stdout: ' + result.stdout.decode())
-        logging.info(
+        logger.info('stderr: ' + result.stderr.decode())
+        logger.info('stdout: ' + result.stdout.decode())
+        logger.info(
             '-' *
             20 +
             'Error Indexing genome' +
@@ -71,8 +73,8 @@ def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
             '-' *
             20)
         raise Exception
-    logging.info('-' * 20 + 'DONE Indexing genome' + getTimeStr() + '-' * 20)
-    logging.info('\n' * 2)
+    logger.info('-' * 20 + 'DONE Indexing genome' + getTimeStr() + '-' * 20)
+    logger.info('\n' * 2)
 
     return outIdxForUse
 
@@ -118,9 +120,9 @@ def runBowtie2(
     toBamNcpu = max(ncpu // 8, 1)
     if targetFinishedFlag.is_file():
         if target.is_file():
-            logging.info(f'Found finished bam file {str(target)}')
+            logger.info(f'Found finished bam file {str(target)}')
         else:
-            logging.info(f'Found finished flag but not bam file.')
+            logger.info(f'Found finished flag but not bam file.')
             raise FileNotFoundError(str(target))
     else:
         cmdList.extend([
@@ -128,7 +130,7 @@ def runBowtie2(
             "|", "samtools", "sort", '-@', str(
                 toBamNcpu), "--write-index", '-o', str(target)
         ])
-        logging.info(' '.join(cmdList))
+        logger.info(' '.join(cmdList))
 
         # Start running both
         cmd = withActivateEnvCmd(' '.join(cmdList), SHORTREADS_ENV)
@@ -137,9 +139,9 @@ def runBowtie2(
         result = subprocess.run(cmd, shell=True,
                                 capture_output=True, executable=SHELL)
         if result.returncode != 0:
-            logging.info('stderr: ' + result.stderr.decode())
-            logging.info('stdout: ' + result.stdout.decode())
+            logger.info('stderr: ' + result.stderr.decode())
+            logger.info('stdout: ' + result.stdout.decode())
         # stderr has logging.info info from bowtie2
-        logging.info(result.stderr.decode())
-        logging.info(f'Finished in {timeDiffStr(ts)}\n')
+        logger.info(result.stderr.decode())
+        logger.info(f'Finished in {timeDiffStr(ts)}\n')
         targetFinishedFlag.touch()

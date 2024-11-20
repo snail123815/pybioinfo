@@ -134,7 +134,7 @@ def get_read_files_per_sample(
     return sample_file_dict, peSfx, file_fullexts[0]
 
 
-def align_multiple_raw_bowtie2(
+def  multiple_raw_align_bowtie2(
     raw: list[Path],
     sampleNames: list[str] | None,
     out: Path,
@@ -144,6 +144,7 @@ def align_multiple_raw_bowtie2(
     dryRun: bool,
 ):
     # Start logic
+    logger.addHandler(logging.FileHandler(out / "align.log"))
     logger.info("=" * 20 + getTimeStr() + "=" * 20)
     if dryRun:
         logger.debug("=" * 20 + "Dry run, will not execute bowtie2")
@@ -231,20 +232,17 @@ def main():
     args = parser.parse_args()
 
     # Process loggers
-    log_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(args.out / "align.log"),
+            logging.StreamHandler(),
+        ],
     )
-    log_file = args.out / "align.log"
-    log_file_handler = logging.FileHandler(log_file)
-    log_file_handler.setFormatter(log_formatter)
-    logger.addHandler(log_file_handler)
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(log_formatter)
-    logger.addHandler(console_handler)
-    logger.setLevel(logging.DEBUG)
 
     logger.debug(args)
-    align_multiple_raw_bowtie2(
+    multiple_raw_align_bowtie2(
         raw=args.raw,
         genomes=args.genome,
         out=args.out,
