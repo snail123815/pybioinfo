@@ -15,10 +15,15 @@ from Bio.SeqRecord import SeqRecord
 from tqdm import tqdm
 
 from pyBioinfo_modules.basic.decompress import decompFileIfCompressed
-from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import \
-    FNA_EXTENSIONS
+from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import (
+    FNA_EXTENSIONS,
+)
 from pyBioinfo_modules.wrappers._environment_settings import (
-    ANTISMASH_ENV, CONDAEXE, SHELL, withActivateEnvCmd)
+    ANTISMASH_ENV,
+    CONDAEXE,
+    SHELL,
+    withActivateEnvCmd,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +46,32 @@ clusterNumberPattern = re.compile(r"\.region[0-9]{3}\.gbk$")
 assert (
     findClusterNumberStr(Path(antismashClusterGbkFileNameTest)) == "region001"
 )
+
+
+def log_antismash_version(
+    condaexe=CONDAEXE, antismash_env=ANTISMASH_ENV, shell=SHELL
+) -> str:
+    logger.info(f"antiSMASH environment location: {antismash_env}")
+    logger.info(f"Conda executable: { condaexe }")
+    logger.info(f"Shell: { shell }")
+    cmd = withActivateEnvCmd(
+                "antismash --version", antismash_env, condaexe, shell
+            )
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            shell=True,
+            executable=shell,
+        )
+        result.check_returncode()
+        version = result.stdout.decode()
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Command '{cmd}' failed")
+        raise e
+    version = version.split(' ')[1].strip()
+    logger.info(f"antiSMASH version: {version}")
+    return version
 
 
 def runAntismash(
@@ -69,6 +100,7 @@ def runAntismash(
 ) -> Path:
 
     logger.info(f"Running antiSMASH for {inputFilePath}")
+    log_antismash_version(condaExe, condaEnv, shell)
 
     inputFilePath, unzip = decompFileIfCompressed(inputFilePath)
 
