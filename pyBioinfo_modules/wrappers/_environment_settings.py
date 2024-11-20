@@ -9,11 +9,13 @@ CONDAEXE: Literal["conda", "mamba", "micromamba"] = "micromamba"
 MACS_ENV: Path | None = Path.home() / "genvs/macs3"
 MACS_PROGRAM = "macs3"
 
-ANTISMASH_ENV: Path | None = Path.home() / "genvs/quasan"
-BUSCO_ENV: Path | None = Path.home() / "genvs/quasan"
-PROKKA_ENV: Path | None = Path.home() / "genvs/quasan"
-MASH_ENV: Path | None = Path.home() / "genvs/phylophlan"
-BIGSCAPE_ENV: Path | None = Path.home() / "genvs/bigscape"
+ANTISMASH_ENV: Path | None = Path.home() / 'genvs/quasan'
+BUSCO_ENV: Path | None = Path.home() / 'genvs/quasan'
+PROKKA_ENV: Path | None = Path.home() / 'genvs/quasan'
+MASH_ENV: Path | None = Path.home() / 'genvs/phylophlan'
+BIGSCAPE_ENV: Path | None = Path.home() / 'genvs/bigscape'
+SHORTREADS_ENV: Path | None = Path.home() / 'genvs/shortReads'
+
 PFAM_DB: Path | None = None
 try:
     PFAM_DB = sorted(

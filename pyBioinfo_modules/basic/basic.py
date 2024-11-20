@@ -1,4 +1,5 @@
 from functools import reduce
+import time
 
 
 def makeList(ele1, ele2):
@@ -14,3 +15,13 @@ def flattenList(lst):
     if all(not isinstance(ele, list) for ele in lst):
         return lst
     return flattenList(reduce(makeList, lst, []))
+
+
+def getTimeStr():
+    return time.strftime('%z, %a, %d %b %Y, %H:%M:%S', time.localtime())
+
+
+def timeDiffStr(a):
+    d = abs(time.time() - a)
+    h = int(d // 3600)
+    return str(h).zfill(2) + time.strftime(':%M:%S', time.gmtime(d))
