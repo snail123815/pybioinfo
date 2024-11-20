@@ -55,8 +55,8 @@ def log_antismash_version(
     logger.info(f"Conda executable: { condaexe }")
     logger.info(f"Shell: { shell }")
     cmd = withActivateEnvCmd(
-                "antismash --version", antismash_env, condaexe, shell
-            )
+        "antismash --version", antismash_env, condaexe, shell
+    )
     try:
         result = subprocess.run(
             cmd,
@@ -69,7 +69,7 @@ def log_antismash_version(
     except subprocess.CalledProcessError as e:
         logger.error(f"Command '{cmd}' failed")
         raise e
-    version = version.split(' ')[1].strip()
+    version = version.split(" ")[1].strip()
     logger.info(f"antiSMASH version: {version}")
     return version
 
