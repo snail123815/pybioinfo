@@ -1,7 +1,7 @@
-from pathlib import Path
-from pyBioinfo_modules.basic.decompress import splitStemSuffixIfCompressed
 import logging
+from pathlib import Path
 
+from pyBioinfo_modules.basic.decompress import splitStemSuffixIfCompressed
 
 logger = logging.getLogger(__name__)
 

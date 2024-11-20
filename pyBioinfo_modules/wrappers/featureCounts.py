@@ -31,6 +31,21 @@ def featureCounts(
     peLoose: bool,
     dryRun: bool = False,
 ):
+    """
+    Run the featureCounts command with specified parameters.
+
+    Args:
+        file (Path): Path to the input BAM/SAM file.
+        gffFile (Path): Path to the GFF annotation file.
+        ncpu (int): Number of CPUs to use.
+        output_path (Path): Path to the output directory.
+        isPe (bool): Whether the input is paired-end.
+        targetFeature (str): Feature type to count.
+        groupFactor (str): Grouping factor for counting.
+        fractionCounting (bool): Whether to use fractional counting.
+        peLoose (bool): Whether to use loose paired-end criteria.
+        dryRun (bool): If True, only log the command without executing.
+    """
     ts = time.time()
     b = file.stem
     cmdList = [
@@ -124,6 +139,21 @@ def multiple_featureCounts(
     peLoose: bool,
     dryRun: bool = False,
 ):
+    """
+    Run featureCounts on multiple files in a directory.
+
+    Args:
+        input_path (Path): Path to the directory containing input BAM/SAM files.
+        output_path (Path): Path to the output directory.
+        gbk_path (Path): Path to the GenBank file for annotation conversion.
+        ncpu (int): Number of CPUs to use.
+        isPe (bool): Whether the input is paired-end.
+        targetFeature (str): Feature type to count.
+        groupFactor (str): Grouping factor for counting.
+        fractionCounting (bool): Whether to use fractional counting.
+        peLoose (bool): Whether to use loose paired-end criteria.
+        dryRun (bool): If True, only log the command without executing.
+    """
     output_path.mkdir(exist_ok=True)
     log_file = output_path / "featureCounts.log"
     logger.addHandler(logging.FileHandler(log_file))

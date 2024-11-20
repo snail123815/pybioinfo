@@ -8,76 +8,93 @@ from typing import IO
 from Bio import SeqIO
 
 from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
-from pyBioinfo_modules.basic.parse_raw_read_dir import \
-    get_read_files_per_sample
+from pyBioinfo_modules.basic.parse_raw_read_dir import get_read_files_per_sample
 from pyBioinfo_modules.wrappers._environment_settings import (
-    SHELL, SHORTREADS_ENV, withActivateEnvCmd)
+    SHELL,
+    SHORTREADS_ENV,
+    withActivateEnvCmd,
+)
 
 logger = logging.getLogger(__name__)
 
+
 def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
+    """
+    Build Bowtie2 index from genome files.
+
+    Args:
+        fs (list[Path]): List of genome file paths.
+        out (Path): Output directory for the index files.
+        name (str, optional): Name for the index files. Defaults to None.
+
+    Returns:
+        Path: Path to the Bowtie2 index.
+    """
     fs = [f.resolve() for f in fs]
     out = out.resolve()
 
     # check if idx file exists
-    genomePath = fs[0].parent
-    genomeName = fs[0].stem
-    logger.info(f'genome name: {genomeName}')
-
     out.mkdir(exist_ok=True)
-    bt2_base = ('_'.join(f.stem for f in fs) if name is None else name)
+    bt2_base = "_".join(f.stem for f in fs) if name is None else name
     outIdxForUse = out / bt2_base
 
-    if any((Path(str(outIdxForUse) + '.1.bt2').is_file(),
-            Path(str(outIdxForUse) + '.1.bt21').is_file())):
+    if any(
+        (
+            Path(str(outIdxForUse) + ".1.bt2").is_file(),
+            Path(str(outIdxForUse) + ".1.bt21").is_file(),
+        )
+    ):
         logger.info(
-            'Found index file, will not make new ones.\n'
-            f'{str(list(out.glob(bt2_base + "*"))[0])}')
+            "Found index file, will not make new ones.\n"
+            f'{str(list(out.glob(bt2_base + "*"))[0])}'
+        )
         return outIdxForUse
 
     # convert gbk to fa
     tempFiles: list[IO] = []
-    if fs[0].suffix not in ['.fa', '.fasta', '.fna', '.fsa']:
+    if fs[0].suffix not in [".fa", ".fasta", ".fna", ".fsa"]:
         # try gbk
         newF = NamedTemporaryFile()
         newFps: list[Path] = []
         try:
             for f in fs:
-                for s in SeqIO.parse(f, 'genbank'):
-                    SeqIO.write(s, newF.name, 'fasta')
+                for s in SeqIO.parse(f, "genbank"):
+                    SeqIO.write(s, newF.name, "fasta")
                     newFps.append(Path(newF.name))
                     tempFiles.append(newF)  # for closing these files later
         except Exception as err:
-            logger.error(f'Unexpected error {err=}, {type(err)=}')
+            logger.error(f"Unexpected error {err=}, {type(err)=}")
             raise
         fs = newFps
 
-    logger.info('-' * 20 + 'Indexing genome ' + getTimeStr() + '-' * 20)
+    logger.info("-" * 20 + "Indexing genome " + getTimeStr() + "-" * 20)
     cmdList = [
-        'bowtie2-build',
-        ','.join(str(f) for f in fs),
+        "bowtie2-build",
+        ",".join(str(f) for f in fs),
         str(out / bt2_base),
     ]
-    logger.info(' '.join(cmdList))
-    cmd = withActivateEnvCmd(' '.join(cmdList), SHORTREADS_ENV)
-    result = subprocess.run(cmd, capture_output=True,
-                            shell=True, executable=SHELL)
+    logger.info(" ".join(cmdList))
+    cmd = withActivateEnvCmd(" ".join(cmdList), SHORTREADS_ENV)
+    result = subprocess.run(
+        cmd, capture_output=True, shell=True, executable=SHELL
+    )
     (f.close() for f in tempFiles)
     if result.returncode != 0 or not any(
-        (Path(str(outIdxForUse) + '.1.bt2').is_file(),
-         Path(str(outIdxForUse) + '.1.bt21').is_file())):
-        logger.info('stderr: ' + result.stderr.decode())
-        logger.info('stdout: ' + result.stdout.decode())
+        (
+            Path(str(outIdxForUse) + ".1.bt2").is_file(),
+            Path(str(outIdxForUse) + ".1.bt21").is_file(),
+        )
+    ):
+        logger.info("stderr: " + result.stderr.decode())
+        logger.info("stdout: " + result.stdout.decode())
         logger.info(
-            '-' *
-            20 +
-            'Error Indexing genome' +
-            getTimeStr() +
-            '-' *
-            20)
+            "-" * 20 + "Error Indexing genome" + getTimeStr() + "-" * 20
+        )
         raise Exception
-    logger.info('-' * 20 + 'DONE Indexing genome' + getTimeStr() + '-' * 20)
-    logger.info('\n' * 2)
+    logger.info("-" * 20 + "DONE Indexing genome" + getTimeStr() + "-" * 20)
+    logger.info("\n" * 2)
+
+    logger.info(f"Index files: {str(list(out.glob(bt2_base + '*'))[0])}")
 
     return outIdxForUse
 
@@ -85,36 +102,55 @@ def buildBowtie2idx(fs: list[Path], out: Path, name=None) -> Path:
 def runBowtie2(
     genomeBowtie2Idx: Path,
     outPut: Path,
-    peFiles1:  list[Path] = [],
-    peFiles2:  list[Path] = [],
-    unpairedFiles:  list[Path] = [],
-    sample: str = '',
+    peFiles1: list[Path] = [],
+    peFiles2: list[Path] = [],
+    unpairedFiles: list[Path] = [],
+    sample: str = "",
     ncpu: int = 2,
-    dryRun: bool = False
+    dryRun: bool = False,
 ):
+    """
+    Run Bowtie2 alignment and convert output to BAM format.
+
+    Args:
+        genomeBowtie2Idx (Path): Path to the Bowtie2 index.
+        outPut (Path): Output directory for the BAM files.
+        peFiles1 (list[Path], optional): List of paired-end read files
+                                         (first pair). Defaults to [].
+        peFiles2 (list[Path], optional): List of paired-end read files
+                                         (second pair). Defaults to [].
+        unpairedFiles (list[Path], optional): List of unpaired read files.
+                                              Defaults to [].
+        sample (str, optional): Sample name. Defaults to "".
+        ncpu (int, optional): Number of CPUs to use. Defaults to 2.
+        dryRun (bool, optional): If True, perform a dry run without
+                                 executing Bowtie2. Defaults to False.
+    """
     ts = time.time()
     allFiles = peFiles1 + peFiles2 + unpairedFiles
-    assert len(allFiles) > 0, 'Files are needed.'
+    assert len(allFiles) > 0, "Files are needed."
     # prepare align arguments
-    cmdList = ['bowtie2', '-x', str(genomeBowtie2Idx), '-p', str(ncpu)]
+    cmdList = ["bowtie2", "-x", str(genomeBowtie2Idx), "-p", str(ncpu)]
     if any(len(sps) > 0 for sps in [peFiles1, peFiles2]):
         assert len(peFiles1) == len(peFiles2)
-        cmdList.extend([
-            '-1', ','.join(str(s) for s in peFiles1),
-            '-2', ','.join(str(s) for s in peFiles2)
-        ])
+        cmdList.extend(
+            [
+                "-1",
+                ",".join(str(s) for s in peFiles1),
+                "-2",
+                ",".join(str(s) for s in peFiles2),
+            ]
+        )
     if len(unpairedFiles) > 0:
-        cmdList.extend([
-            '-U', ','.join(str(s) for s in unpairedFiles)
-        ])
+        cmdList.extend(["-U", ",".join(str(s) for s in unpairedFiles)])
 
     # prepare convert to bam arguments
-    if sample == '':
+    if sample == "":
         # inpute sample name
         sample = allFiles[0].stem[0]
-        for i in range(len(allFiles[0].stem)-1):
-            if len(set([f.stem[:i+2] for f in allFiles])) == 1:
-                sample = allFiles[0].stem[:i+2]
+        for i in range(len(allFiles[0].stem) - 1):
+            if len(set([f.stem[: i + 2] for f in allFiles])) == 1:
+                sample = allFiles[0].stem[: i + 2]
             else:
                 break
     target = outPut / f'{sample.strip("_")}.bam'
@@ -123,30 +159,44 @@ def runBowtie2(
     toBamNcpu = max(ncpu // 8, 1)
     if targetFinishedFlag.is_file():
         if target.is_file():
-            logger.info(f'Found finished bam file {str(target)}')
+            logger.info(f"Found finished bam file {str(target)}")
         else:
-            logger.info(f'Found finished flag but not bam file.')
+            logger.info(f"Found finished flag but not bam file.")
             raise FileNotFoundError(str(target))
     else:
-        cmdList.extend([
-            '|', 'samtools', 'view', '-bS', '-@', str(toBamNcpu),
-            "|", "samtools", "sort", '-@', str(
-                toBamNcpu), "--write-index", '-o', str(target)
-        ])
-        logger.info(' '.join(cmdList))
+        cmdList.extend(
+            [
+                "|",
+                "samtools",
+                "view",
+                "-bS",
+                "-@",
+                str(toBamNcpu),
+                "|",
+                "samtools",
+                "sort",
+                "-@",
+                str(toBamNcpu),
+                "--write-index",
+                "-o",
+                str(target),
+            ]
+        )
+        logger.info(" ".join(cmdList))
 
         # Start running both
-        cmd = withActivateEnvCmd(' '.join(cmdList), SHORTREADS_ENV)
+        cmd = withActivateEnvCmd(" ".join(cmdList), SHORTREADS_ENV)
         if dryRun:
             return
-        result = subprocess.run(cmd, shell=True,
-                                capture_output=True, executable=SHELL)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, executable=SHELL
+        )
         if result.returncode != 0:
-            logger.info('stderr: ' + result.stderr.decode())
-            logger.info('stdout: ' + result.stdout.decode())
+            logger.info("stderr: " + result.stderr.decode())
+            logger.info("stdout: " + result.stdout.decode())
         # stderr has logging.info info from bowtie2
         logger.info(result.stderr.decode())
-        logger.info(f'Finished in {timeDiffStr(ts)}\n')
+        logger.info(f"Finished in {timeDiffStr(ts)}\n")
         targetFinishedFlag.touch()
 
 
@@ -159,6 +209,18 @@ def multiple_raw_align_bowtie2(
     ncpu: int,
     dryRun: bool,
 ):
+    """
+    Align multiple raw RNA-Seq samples using Bowtie2.
+
+    Args:
+        raw (list[Path]): List of paths to raw data files.
+        sampleNames (list[str] | None): List of sample names. Defaults to None.
+        out (Path): Output directory for the alignment results.
+        isPe (bool): Whether the data is paired-end.
+        genomes (list[Path]): List of genome file paths.
+        ncpu (int): Number of CPUs to use.
+        dryRun (bool): If True, perform a dry run without executing Bowtie2.
+    """
     # Start logic
     logger.addHandler(logging.FileHandler(out / "align.log"))
     logger.info("=" * 20 + getTimeStr() + "=" * 20)
