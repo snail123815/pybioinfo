@@ -1,4 +1,5 @@
 import os
+import logging
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,6 +10,8 @@ from pyBioinfo_modules.wrappers._environment_settings import (
     CONDAEXE,
     withActivateEnvCmd,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def macs_predictd(experimentDict: Path, outputDir: Path, gsize):
@@ -120,9 +123,25 @@ def parse_comparison_file(compFile: Path, bamPath: Path) -> dict[str:Path]:
                 ctri = ls.index("ctr")
                 expi = ls.index("exp")
                 continue
-            ctr = bamPath / ls[ctri]
-            exp = bamPath / ls[expi]
-            experimentDict[ls[0]] = {"ctr": ctr, "exp": exp}
+            experimentDict[ls[0]] = {}
+            for n, i in zip(["ctr", "exp"], [ctri, expi]):
+                f = bamPath / ls[i]
+                if not f.exists():
+                    if f.suffix == "":
+                        logger.warning(f"Try to add .bam to the file name: {f}")
+                        f = f.with_suffix(".bam")
+                    elif f.suffix != ".bam":
+                        # it is possible that the file name contains '.'
+                        logger.warning(
+                            f"Target file from comparison file is"
+                            f"not of .bam format: {f}"
+                        )
+                        f = bamPath / ls[i] + ".bam"
+                if not f.exists():
+                    raise FileNotFoundError(
+                        f"Target file from comparison file does not exist: {f}"
+                    )
+                experimentDict[ls[0]][n] = f
     return experimentDict
 
 
