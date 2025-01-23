@@ -168,6 +168,8 @@ def addTitle(filtered, title, filter, method):
         title = f"{title}_{threshFold}"
     elif filter == 'likely':
         title = f'{title}_{method}'
+    elif filter == "summit":
+        title = f'{title}_{method}'
     else:
         raise NameError(f'Non-supported filter {filter}, method {method}')
     return title
