@@ -1,17 +1,41 @@
 import numpy.polynomial.polynomial as poly
 import numpy as np
+import pandas as pd
+
+
+def filter_peaks(peak_df, filter_groups: list[list[str, list]]) -> pd.DataFrame:
+    working_peakDf = peak_df.copy()
+    for filter_group in filter_groups:
+        filter_method, method_args = filter_group
+        match filter_method:
+            case "fold":
+                working_peak_df = filterFoldEnrichment(
+                    working_peak_df, method=method_args
+                )
+            case "length":
+                working_peak_df = filterLength(
+                    working_peak_df, method=method_args
+                )
+            case "summit":
+                working_peak_df = filter_summit_height(
+                    working_peak_df, method=method_args
+                )
+            case "likely":
+                working_peak_df = filterLikely(
+                    working_peak_df, method=method_args
+                )
 
 
 def findPeakTrough(array):
-    ''' findPeakTrough(array) -> min_indices, max_indices
+    """findPeakTrough(array) -> min_indices, max_indices
     Finds the turning points within an 1D array and returns the indices of the minimum and
     maximum turning points in two separate lists.
     https://stackoverflow.com/a/48360671/6823079
     answered Jan 20 2018 at 20:18
     by Timo
-    '''
+    """
     idx_max, idx_min = [], []
-    if (len(array) < 3):
+    if len(array) < 3:
         return idx_min, idx_max
 
     NEUTRAL, RISING, FALLING = range(3)
@@ -40,27 +64,33 @@ def findPeakTrough(array):
 
 def peakLengthAtLoc(data, series):
     if not hasattr(series, "__iter__"):
-        series = [series, ]
+        series = [
+            series,
+        ]
     lengthNums = []
     for x in series:
         if 0 <= x <= len(data.index):
             lengthNums.append(data.length.iloc[np.int(x)])
         else:
-            lengthNums.append('')
+            lengthNums.append("")
     if len(lengthNums) == 1:
         return lengthNums[0]
     return lengthNums
 
 
 def minMaxPolyfit(x, y, degree=10):
-    """ Fit a polynomial curve to data and get
+    """Fit a polynomial curve to data and get
     the turning points (peak and trough) on this curve.
     x,y,degree = 10
     x,y are list of values"""
     coefs = poly.polyfit(x, y, degree)
     Fit = poly.Polynomial(coefs)
-    yTrend = [np.NaN, ]
-    yTrend_trend = [np.NaN, ]
+    yTrend = [
+        np.NaN,
+    ]
+    yTrend_trend = [
+        np.NaN,
+    ]
     for index in range(len(y) - 1):
         if index < 500:
             yTrend.append(np.NaN)
@@ -76,7 +106,7 @@ def minMaxPolyfit(x, y, degree=10):
     return min_indices, max_indices, Fit
 
 
-def filterFoldEnrichment(peakDF, method=['single', 10]):
+def filterFoldEnrichment(peakDF, method=["single", 10]):
     methodIsList = False
     if isinstance(method, list):
         methodIsList = True
@@ -85,113 +115,150 @@ def filterFoldEnrichment(peakDF, method=['single', 10]):
     else:
         thresh = 10
 
-    if method not in ['single', 'max', 'min']:
+    if method not in ["single", "max", "min"]:
         raise Exception(f"Wrong method '{method}' ('single','max','min')")
-    if method == 'single':
-        if 'fold_enrichment' not in peakDF.columns:
+    if method == "single":
+        if "fold_enrichment" not in peakDF.columns:
             raise Exception(
-                f"Wrong dataframe for {method} fold enrichment filter: {peakDF.columns}")
+                f"Wrong dataframe for {method} fold enrichment filter: {peakDF.columns}"
+            )
         y = peakDF.fold_enrichment
         if len(y) <= 2000 or methodIsList:
-            print(
-                f'No polyfit, setting thresh for fold_enrichment = {thresh}')
+            print(f"No polyfit, setting thresh for fold_enrichment = {thresh}")
         else:
             bondarieMin = 1300
             x = range(1, len(y) + 1)
             min_indices, max_indices, Fit = minMaxPolyfit(x, y)
-            thresh = min([Fit(lim) for lim in [
-                         indice for indice in max_indices if indice >= bondarieMin]])
-            print(f'Done polyfit, thresh for fold_enrichment = {thresh}')
-    if method == 'max':
-        if 'fold_enrichment_A' not in peakDF.columns:
+            thresh = min(
+                [
+                    Fit(lim)
+                    for lim in [
+                        indice
+                        for indice in max_indices
+                        if indice >= bondarieMin
+                    ]
+                ]
+            )
+            print(f"Done polyfit, thresh for fold_enrichment = {thresh}")
+    if method == "max":
+        if "fold_enrichment_A" not in peakDF.columns:
             raise Exception(
-                f"Wrong dataframe for {method} fold enrichment filter: {peakDF.columns}")
-        maxFold = peakDF.loc[:, ['fold_enrichment_A',
-                                 'fold_enrichment_B']].max(axis=1)
+                f"Wrong dataframe for {method} fold enrichment filter: {peakDF.columns}"
+            )
+        maxFold = peakDF.loc[:, ["fold_enrichment_A", "fold_enrichment_B"]].max(
+            axis=1
+        )
         peakDF = peakDF.assign(fold_enrichment=maxFold)
-    if method == 'min':
-        if 'fold_enrichment_A' not in peakDF.columns:
+    if method == "min":
+        if "fold_enrichment_A" not in peakDF.columns:
             raise Exception(
-                f"Wrong dataframe for {method} fold enrichment filter: {peakDF.columns}")
-        minFold = peakDF.loc[:, ['fold_enrichment_A',
-                                 'fold_enrichment_B']].min(axis=1)
+                f"Wrong dataframe for {method} fold enrichment filter: {peakDF.columns}"
+            )
+        minFold = peakDF.loc[:, ["fold_enrichment_A", "fold_enrichment_B"]].min(
+            axis=1
+        )
         peakDF = peakDF.assign(fold_enrichment=minFold)
-    filtered = peakDF.query('fold_enrichment >= @thresh')
+    filtered = peakDF.query("fold_enrichment >= @thresh")
     return filtered
+
+
 # filterFoldEnrichment method = ['single','max','min']
 
 
-def filterLength(peakDF, method='dist'):
+def filterLength(peakDF, method="dist"):
     peakDF = peakDF.assign(length=peakDF.end - peakDF.start)
-    peakDF.sort_values('length', inplace=True)
-    if method == 'dist':
+    peakDF.sort_values("length", inplace=True)
+    if method == "dist":
         medians = peakDF.length.median()
         minLength = int(peakDF.length.quantile(q=[0.25]))
         maxLength = int(peakDF.length.quantile(q=[0.75]))
-    elif method == 'polyfit':
+    elif method == "polyfit":
         # data has to be origional peak files
         # this has to be checked by plotting in peak_enrichment_modeling
         y = peakDF.fold_enrichment
         if len(y) <= 2000:
             raise Exception(
-                'You are doing polyfit in a data set less then 2000 entries.')
+                "You are doing polyfit in a data set less then 2000 entries."
+            )
         bondarieMin = 1300
         x = range(1, len(y) + 1)
         min_indices, max_indices, Fit = minMaxPolyfit(x, y)
-        foldThresh = min([Fit(lim) for lim in [
-                         indice for indice in max_indices if indice >= bondarieMin]])
+        foldThresh = min(
+            [
+                Fit(lim)
+                for lim in [
+                    indice for indice in max_indices if indice >= bondarieMin
+                ]
+            ]
+        )
         max_indices = [
-            indice for indice in max_indices if indice >= bondarieMin]
+            indice for indice in max_indices if indice >= bondarieMin
+        ]
         if len(max_indices) != 2:
             raise Exception(
-                f'Please check the ployfit graph, there are {len(max_indices)} turning points for now.')
+                f"Please check the ployfit graph, there are {len(max_indices)} turning points for now."
+            )
         # gether data for output
-        minLength, maxLength = [peakLengthAtLoc(peakDF, indice)
-                                for indice in max_indices if indice >= bondarieMin]
+        minLength, maxLength = [
+            peakLengthAtLoc(peakDF, indice)
+            for indice in max_indices
+            if indice >= bondarieMin
+        ]
     elif isinstance(method, list):
         try:
             minLength, maxLength = method
         except BaseException:
             raise Exception(
-                'Method should be [minLength, maxLength] if you do not fillter')
+                "Method should be [minLength, maxLength] if you do not fillter"
+            )
     else:
-        raise Exception(f'Method {method} wrong for length filter')
-    filtered = peakDF.query('@minLength <= length <= @maxLength')
+        raise Exception(f"Method {method} wrong for length filter")
+    filtered = peakDF.query("@minLength <= length <= @maxLength")
     filtered.sort_index()
     return filtered
+
+
 # filterLength method = ['dist','polyfit']
 
 
 def evenLengthAroundSummit(peakDF, method):
     rangeSummit = method
-    if 'abs_summit' not in peakDF.columns:
-        raise Exception('No summit info in dataframe')
+    if "abs_summit" not in peakDF.columns:
+        raise Exception("No summit info in dataframe")
     peakDF.start = peakDF.abs_summit - rangeSummit
     peakDF.end = peakDF.abs_summit + rangeSummit
     return peakDF
+
+
 # evenLengthAroundSummit
 
 
 def filterLikely(peakDF, method):
     thresh = float(method)
-    if 'likely_difference' in peakDF.columns:
+    if "likely_difference" in peakDF.columns:
         if thresh >= 10:
             raise Exception(
-                'Threshold error, for common peaks the value should be the lesser the better, set up a small value ~1')
-        filtered = peakDF.query('likely_difference <= @thresh')
-    elif 'log10_likely' in peakDF.columns:
+                "Threshold error, for common peaks the value should be the lesser the better, set up a small value ~1"
+            )
+        filtered = peakDF.query("likely_difference <= @thresh")
+    elif "log10_likely" in peakDF.columns:
         if thresh < 10:
             raise Exception(
-                'Threshold error, for unique peaks, the value should be the bigger the better, set up a big value >=10')
-        filtered = peakDF.query('log10_likely >= @thresh')
-    elif '-log10(pvalue)' in peakDF.columns:
+                "Threshold error, for unique peaks, the value should be the bigger the better, set up a big value >=10"
+            )
+        filtered = peakDF.query("log10_likely >= @thresh")
+    elif "-log10(pvalue)" in peakDF.columns:
         if thresh < 10:
             raise Exception(
-                'Threshold error, for peaks, the value should be the bigger the better, set up a big value >=10')
-        filtered = peakDF.query('`-log10(pvalue)` >= @thresh')
+                "Threshold error, for peaks, the value should be the bigger the better, set up a big value >=10"
+            )
+        filtered = peakDF.query("`-log10(pvalue)` >= @thresh")
 
     else:
         raise Exception(
-            f'Likely filter failed for this data frame with header\n{peakDF.columns}')
+            f"Likely filter failed for this data frame with header\n{peakDF.columns}"
+        )
     return filtered
+
+
 # filterLikely
