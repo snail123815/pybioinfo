@@ -188,7 +188,7 @@ def seqFeature_to_tuple(seqFeature):
 def slice_sequence(
     sourceSeq: SeqRecord,
     location: FeatureLocation,
-    id=None,
+    id: str | None = None,
     with_features=False,
 ):
     rc = False
@@ -232,6 +232,8 @@ def slice_sequence(
     sliced.id = f"{sourceSeq.id}_{start}-{end}" if id is None else id
     if descrip:
         sliced.description = "-".join(descrip).replace(" ", "_")
+    else:
+        sliced.description = f"{sourceSeq.id}_{start}-{end}"
     return sliced
 
 

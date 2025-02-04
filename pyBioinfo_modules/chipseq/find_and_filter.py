@@ -4,26 +4,28 @@ import pandas as pd
 
 
 def filter_peaks(peak_df, filter_groups: list[list[str, list]]) -> pd.DataFrame:
-    working_peakDf = peak_df.copy()
+    working_peak_df = peak_df.copy()
     for filter_group in filter_groups:
-        filter_method, method_args = filter_group
-        match filter_method:
-            case "fold":
-                working_peak_df = filterFoldEnrichment(
-                    working_peak_df, method=method_args
+        filter_key, filter_limits = filter_group
+        if filter_key is None:
+            continue
+        if filter_key not in peak_df.columns:
+            print(
+                f"Filter key {filter_key} not found in peak table, ignored "
+                f"filtering {filter_group}"
+            )
+        if filter_key.lower() == "chr":
+            # Maybe generalize to str type filters
+            for target_chr in filter_limits:
+                working_peak_df = working_peak_df.query(
+                    f"chr == '{target_chr}'"
                 )
-            case "length":
-                working_peak_df = filterLength(
-                    working_peak_df, method=method_args
-                )
-            case "summit":
-                working_peak_df = filter_summit_height(
-                    working_peak_df, method=method_args
-                )
-            case "likely":
-                working_peak_df = filterLikely(
-                    working_peak_df, method=method_args
-                )
+        else:
+            working_peak_df = working_peak_df.query(
+                f"{filter_key} >= {filter_limits[0]} and "
+                f"{filter_key} <= {filter_limits[1]}"
+            )
+    return working_peak_df
 
 
 def findPeakTrough(array):
@@ -221,16 +223,17 @@ def filterLength(peakDF, method="dist"):
 # filterLength method = ['dist','polyfit']
 
 
-def evenLengthAroundSummit(peakDF, method):
-    rangeSummit = method
-    if "abs_summit" not in peakDF.columns:
+def change_location_to_summit(
+    peak_df, to_left=150, to_right=150, seq_end_at=None
+):
+    if "abs_summit" not in peak_df.columns:
         raise Exception("No summit info in dataframe")
-    peakDF.start = peakDF.abs_summit - rangeSummit
-    peakDF.end = peakDF.abs_summit + rangeSummit
-    return peakDF
-
-
-# evenLengthAroundSummit
+    peak_df.start = peak_df.abs_summit - to_left
+    peak_df.end = peak_df.abs_summit + to_right
+    if seq_end_at:
+        peak_df.end = min(peak_df.end, seq_end_at)
+    peak_df.start = max(peak_df.start, 1)
+    return peak_df
 
 
 def filterLikely(peakDF, method):

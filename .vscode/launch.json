@@ -5,13 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "pull peak sequences",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "chipSeq_pull_peak_sequences.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--genome",
+                "/vol/local/duc/Coll.Labmates/Proj.Bioinfo_Anna_WblE_ChIPSeq/M145_assembly_AL645882.fasta",
+                "--files",
+                "/vol/local/duc/Coll.Labmates/Proj.Bioinfo_Anna_WblE_ChIPSeq/macs3_peakcalling_ext147/WblE_20_1_peaks.xls",
+                "/vol/local/duc/Coll.Labmates/Proj.Bioinfo_Anna_WblE_ChIPSeq/macs3_peakcalling_ext147/WblE_20_2_peaks.xls",
+                "-o",
+                "~/test",
+                "--overwrite",
+                // "--filter",
+                // "start", "800000", "1300000",
+                "--filter",
+                "end", "950000", "1700000"
+            ]
+        },
+        {
             "name": "peak calling",
             "type": "debugpy",
             "request": "launch",
             "program": "chipSeq_macs_peak_calling.py",
             "console": "integratedTerminal",
             "args": [
-                "-b",
+                "-g",
                 "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/alignments",
                 "-o",
                 "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling_t",
