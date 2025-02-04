@@ -1,16 +1,18 @@
-from Bio.SeqRecord import SeqRecord
-import pandas as pd
 import argparse
-from Bio import SeqIO
-import os
-from typing import Any
 import concurrent.futures
-from pathlib import Path
 from argparse import ArgumentError
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 
 from pyBioinfo_modules.bio_sequences.bio_features import slice_sequence
-from pyBioinfo_modules.chipseq.find_and_filter import change_location_to_summit
-from pyBioinfo_modules.chipseq.find_and_filter import filter_peaks
+from pyBioinfo_modules.chipseq.find_and_filter import (
+    change_location_to_summit,
+    filter_peaks,
+)
 from pyBioinfo_modules.chipseq.read_peak_file import read_peak_file
 
 

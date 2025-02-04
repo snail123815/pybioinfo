@@ -50,6 +50,7 @@ def _read_macs_common_peaks_bed_file(file: Path) -> pd.DataFrame:
     data.index.name = "name"
     return data
 
+
 def read_common_peaks_tsv(file):
     """
     ! not used by general script
@@ -70,6 +71,7 @@ def read_common_peaks_tsv(file):
     ]
     data = pd.read_csv(file, delimiter="\t", usecols=columns, index_col="name")
     return data
+
 
 def read_peak_file(file: Path) -> pd.DataFrame:
     # Read peak file, always have an index column "name", which is unique
