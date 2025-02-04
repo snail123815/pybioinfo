@@ -61,6 +61,7 @@ import argparse
 import logging
 import lzma
 from pathlib import Path
+from typing import Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -95,16 +96,25 @@ def arg_parser():
         required=True,
     )
     arg_group1 = parser.add_mutually_exclusive_group(required=True)
-    arg_group1.add_argument("--region", type=str, help="The region to plot.")
+    arg_group1.add_argument(
+        "--region",
+        type=str,
+        help=(
+            "The region to plot."
+            "Format: 'start-end', 'start,end', or just one location."
+        ),
+    )
     arg_group1.add_argument("--gene", type=str, help="The gene to plot.")
+    arg_group1.add_argument(
+        "--peak_list",
+        type=Path,
+        help=("The path to the peak list ',xls' (tsv format) output by macs."),
+    )
     parser.add_argument(
         "--flanking",
         type=int,
         default=None,
-        help=(
-            "When plotting a gene, the flanking region to include. "
-            "Only effective when --gene is provided."
-        ),
+        help=("When plotting a gene, the flanking region to include. "),
     )
     parser.add_argument(
         "--logscale",
@@ -209,30 +219,114 @@ def plot_macs_pileup(
     ax.xaxis.set_ticks_position("bottom")
 
 
+def read_peak_list(peak_list: Path) -> Iterable[dict]:
+    with peak_list.open("rt") as f:
+        for line in f:
+            if (
+                line.startswith("#")
+                or line.startswith("chr")
+                or len(line.strip()) == 0
+            ):
+                continue
+            try:
+                (
+                    _,
+                    start,
+                    end,
+                    length,
+                    summit,
+                    pileup,
+                    _,
+                    fold_enrichment,
+                    _,
+                    name,
+                ) = line.strip().split("\t")
+            except ValueError:
+                print(line)
+                raise
+
+            yield {
+                "start": int(start),
+                "end": int(end),
+                "length": int(length),
+                "summit": int(summit),
+                "pileup": float(pileup),
+                "fold_enrichment": float(fold_enrichment),
+                "name": str(name),
+            }
+
+
 def __main__():
     argparser = arg_parser()
     args = argparser.parse_args()
 
+    if args.peak_list:
+        peaks = list(read_peak_list(args.peak_list))
+
     genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
 
-    tr_start, tr_end = get_target_region(args, genome_with_annotation)
-    tr_control_data, tr_treat_data = read_macs_pileup(
-        args.macsOutput, tr_start, tr_end
-    )
+    if not args.peak_list:
+        tr_start, tr_end = get_target_region(
+            args.region, args.gene, args.flanking, genome_with_annotation
+        )
+        tr_control_data, tr_treat_data = read_macs_pileup(
+            args.macsOutput, tr_start, tr_end
+        )
 
-    fig, ax = plt.subplots(figsize=(10, 4))
+        fig, ax = plt.subplots(figsize=(10, 4))
 
-    plot_macs_pileup(
-        ax,
-        tr_control_data,
-        tr_treat_data,
-        tr_start,
-        tr_end,
-        do_logscale=args.logscale,
-        genome_with_annotation=genome_with_annotation,
-    )
-    ax.set_title(args.title)
-    fig.savefig(args.savefig, dpi=100)
+        plot_macs_pileup(
+            ax,
+            tr_control_data,
+            tr_treat_data,
+            tr_start,
+            tr_end,
+            do_logscale=args.logscale,
+            genome_with_annotation=genome_with_annotation,
+        )
+        ax.set_title(args.title)
+        fig.savefig(args.savefig, dpi=100)
+    else:
+        for peak in peaks:
+            location = peak["summit"]
+            start, end = peak["start"], peak["end"]
+            length = peak["length"]
+            # Expand both side by length of "summit to edge plus peak length"
+            # or 1500 bp if that value < 1500
+            flanking = max(1500, location - start-length, end-location -length)
+            tr_start, tr_end = get_target_region(
+                location,
+                None,
+                flanking,
+                genome_with_annotation,
+            )
+            tr_control_data, tr_treat_data = read_macs_pileup(
+                args.macsOutput, tr_start, tr_end
+            )
+            fig, ax = plt.subplots(figsize=(10, 4))
+
+            plot_macs_pileup(
+                ax,
+                tr_control_data,
+                tr_treat_data,
+                tr_start,
+                tr_end,
+                do_logscale=args.logscale,
+                genome_with_annotation=genome_with_annotation,
+            )
+            if "_temp" not in args.savefig.name:
+                savefig = args.savefig.with_name(
+                    args.savefig.stem + f"_{peak['name']}.png"
+                )
+            else:
+                savefig = Path(f"./{peak['name']}.png")
+            if args.title:
+                title = f"{args.title} - {peak['name']}"
+            log.info(f"Saving plot to {savefig}")
+            ax.set_title(title)
+            fig.savefig(savefig, dpi=100)
+            plt.close(fig)
+
 
 
 if __name__ == "__main__":

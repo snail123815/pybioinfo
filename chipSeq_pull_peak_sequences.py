@@ -1,294 +1,251 @@
-from Bio.SeqRecord import SeqRecord
-from Bio import SeqIO
-import os
-import concurrent.futures 
-import sys
+import argparse
+import concurrent.futures
+from argparse import ArgumentError
+from pathlib import Path
+from typing import Any
+
 import pandas as pd
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 
-from pyBioinfo_modules.bio_sequences.bio_features import getSpanFetures
-from pyBioinfo_modules.chipseq.find_and_filter import evenLengthAroundSummit 
-from pyBioinfo_modules.chipseq.find_and_filter import filterLikely 
-from pyBioinfo_modules.chipseq.find_and_filter import filterLength 
-from pyBioinfo_modules.chipseq.find_and_filter import filterFoldEnrichment 
-
-
-def readPeak(file, thresh=0):
-    ''' Three kind of dataframe generated
-    name, start, end, abs_summit, fold_enrichment
-    name, start, end, abs_summit, fold_enrichment_A, fold_enrichment_B
-    name, start, end, log10_likely (of the peak presented in this file)
-    thresh is the threshold of the -log10(pvalue)
-    '''
-    if file.endswith('.xls'):
-        # direct peak calling result
-        data = pd.read_csv(
-            file, delimiter='\t',
-            comment='#', index_col='name',
-            usecols=[
-                'name', 'start', 'end', 'abs_summit','-log10(pvalue)', 'fold_enrichment'
-                ]
-            )
-        data = data[data['-log10(pvalue)']>=thresh]
-    elif file.endswith('.bed'):  # different peaks called by Macs2
-        data = pd.read_csv(file, delimiter='\t', skiprows=1,
-                           header=None, usecols=[1, 2, 3, 4], index_col=2)
-        if 'common' in file:
-            data.columns = ['start', 'end', 'likely_difference']
-        else:
-            data.columns = ['start', 'end', 'log10_likely']
-        data.index.name = 'name'
-        # TODO Thresh
-    elif file.endswith('.tsv'):
-        # peaks by comparing peak calling result
-        if 'common_peaks' in file:
-            cols = ['name', 'start', 'end', 'abs_summit',
-                    'fold_enrichment_A', 'fold_enrichment_B']
-        else:
-            cols = ['name', 'start', 'end', 'abs_summit','-log10(pvalue)', 'fold_enrichment']
-        data = pd.read_csv(file, delimiter='\t',
-                           usecols=cols,
-                           index_col='name')
-        # TODO Thresh
-    else:
-        raise NameError
-    data = data[~data.index.duplicated(keep='first')]
-    return data
+from pyBioinfo_modules.bio_sequences.bio_features import slice_sequence
+from pyBioinfo_modules.chipseq.find_and_filter import (
+    change_location_to_summit,
+    filter_peaks,
+)
+from pyBioinfo_modules.chipseq.read_peak_file import read_peak_file
 
 
-def slice(sourceSeq, location, id=None):
-    #start, end = peakDict[peak]
-    start, end = location
-    try:
-        sliceFull = sourceSeq[start:end]
-    except:
-        print(sys.exc_info()[0])
-        print(start, end)
-        exit()
-    # Expand features if the cut location is inside features
-    sliceFull.features.extend(getSpanFetures(sourceSeq, start, end))
-    descrip = []
-    if len(sliceFull.features) > 0:
-        for feat in sliceFull.features:
-            if feat.type == 'gene':
-                try:
-                    descrip.append(feat.qualifiers['locus_tag'][0])
-                except:
-                    pass
-    sliceSeq = SeqRecord(sourceSeq.seq[start:end])
-    if isinstance(id, type(None)):
-        sliceSeq.id = f'{sourceSeq.id}_{start}-{end}'
-    else:
-        sliceSeq.id = id
-    sliceSeq.description = '-'.join(descrip).replace(' ', '_')
-    return sliceSeq
-# slice
-
-
-
-def getSeq(sourceSeq, peakDict):
-    sourceSeq = sourceSeq[:] # make a copy
-    resultSeqs = []
+def slice_seq_concurrent(
+    source_seqs: list[SeqRecord], peak_info: dict[str, list[str, list[int]]]
+) -> list[SeqRecord]:
+    """
+    peak_info data structure:
+    peak_info -> {peak_id: [chr, [start, end]]}
+    """
+    extracted_seqs = []
+    sources = {}
+    for seq in source_seqs:
+        sources[seq.id] = seq
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = []
-        for peak in peakDict:
-            futures.append(executor.submit(slice, sourceSeq, peakDict[peak], peak))
+        for peak, info in peak_info.items():
+            chr = info[0]
+            loc = info[1]
+            if chr not in sources:
+                raise Exception(f"Chromosome {chr} not found in genome file")
+            source_seq = sources[chr]
+            futures.append(
+                executor.submit(slice_sequence, source_seq, loc, peak)
+            )
         for future in concurrent.futures.as_completed(futures):
             sliceSeq = future.result()
-            resultSeqs.append(sliceSeq)
-    return resultSeqs
-# getSeq
+            extracted_seqs.append(sliceSeq)
+    return extracted_seqs
 
 
-def singleFilter(filter, method, filename):
-    if filter not in ['fold', 'length', 'summit', 'likely', None]:
-        raise Exception(
-            f"Filter error, {filter} ['fold', 'length', 'summit', 'likely', None]")
-    print(f'Filtering: {filter} | {method}')
-    if filter == 'fold':
-        # filename ext in ['.tsv', '.xls']
-        if type(method) == list:
-            # make sure the method returned by singleFilter() still a list
-            subMethod = method[0]
-        else:
-            subMethod = method
-        if 'common' in filename:
-            if subMethod not in ['max', 'min']:
-                raise Exception(
-                    f"Method error. For {filter} in {filename} you should use ['max', 'min'], \n while {subMethod} has been passed.")
-        else:
-            if subMethod != 'single':
-                raise Exception(
-                    f"Method error. For {filter} in {filename} you should use ['single'], \n while {subMethod} has been passed.")
-        filterFunction = filterFoldEnrichment  
-
-    elif filter == 'length':
-        if method == None:
-            method = [300, 500]
-        elif method not in ['dist', 'polyfit'] and type(method) != list:
-            raise Exception(
-                f"Method error. For {filter} in {filename} you should use one of ['dist','polyfit', [min, max]], \n while {method} has been passed.")
-        filterFunction = filterLength
-
-    elif filter == 'summit':
-        if method == None:
-            method = 150
-        elif type(method) != int:
-            raise Exception(
-                f"Method error. For {filter} in {filename} you should use integer (+- int around summit), \n while {method} has been passed.")
-        filterFunction = evenLengthAroundSummit
-
-    elif filter == 'likely':
-        try:
-            method = float(method)
-        except:
-            raise Exception(
-                f"Method error. For {filter} in {filename} you should use a number, not {method}")
-        filterFunction = filterLikely
-
-    else:
-        def filterFunction(df, method=None):
-            return df
-
-    return filterFunction, method
-# singleFilter
-
-
-def addTitle(filtered, title, filter, method):
-    methodIsList = False
-    if type(method) == list:
-        methodIsList = True
-        method = '_'.join([str(i) for i in method])
-        title = f"{title}_{filter}_{method}"
-    elif filter == 'length' and method in ['dist', 'polyfit']:
-        minLenght = int(filtered.length.min())
-        maxLength = int(filtered.length.max())
-        title = f"{title}_{minLenght}_{maxLength}"
-    elif filter == 'fold' and not methodIsList:
-        threshFold = int(filtered.fold_enrichment.min())
-        title = f"{title}_{threshFold}"
-    elif filter == 'likely':
-        title = f'{title}_{method}'
-    else:
-        raise NameError(f'Non-supported filter {filter}, method {method}')
+def get_title(title, filter_groups, around_summit):
+    if around_summit:
+        title = f"{title}_around_summit_{around_summit[0]}_{around_summit[1]}"
+    for filter_group in filter_groups:
+        filter_key, filter_limites = filter_group
+        fls = []
+        for limit in filter_limites:
+            if limit is not None:
+                fls.append(str(limit))
+        if filter_key:
+            title = f"{title}_{filter_key}"
+        if fls:
+            title += f"_{'_'.join(fls)}"
     return title
-# addTitle
+
+
+def parse_filter_args_single_group(filter_args: list[str]) -> tuple[str, list]:
+    filter_args = [a.lower() for a in filter_args]
+    if filter_args[0] == "none":
+        filter_method = None
+        method_args = [None]
+    elif filter_args[0] == "chr":
+        filter_method = "chr"
+        method_args = filter_args[1:]
+    else:
+        filter_method = filter_args[0]
+        if len(filter_args) > 1:
+            try:
+                method_args = [int(a) for a in filter_args[1:]]
+            except ValueError:
+                try:
+                    method_args = [float(a) for a in filter_args[1:]]
+                except ValueError:
+                    raise ArgumentError(
+                        None,
+                        f"Filter method {filter_method} should have "
+                        "integer or float arguments",
+                    )
+    return filter_method, method_args
+
+
+def parse_filter_args(filter_args: list[list[str]]) -> list[tuple[str, list]]:
+    filter_groups = []
+    for filter_arg in filter_args:
+        filter_groups.append(parse_filter_args_single_group(filter_arg))
+    return filter_groups
+
+
+def get_peak_info(peak_df: pd.DataFrame) -> dict[str, list[str, list[int]]]:
+    peak_info = {}
+    for peak_id, row in peak_df.iterrows():
+        chr = row["chr"] if "chr" in row else None
+        start = int(row["start"])
+        end = int(row["end"])
+        peak_info[peak_id] = [chr, [start, end]]
+    return peak_info
+
 
 # Main function:
-def pullPeakSequences(genomeFile, file, output,
-                      filter=None, method=None, 
-                      multiFilter=False, multiFilterMethods=None):
+def extract_seq_peaks_to_file(
+    genome_file_path: Path,
+    peak_file_path: Path,
+    output_dir: Path,
+    filter_groups: list[list[str, Any]] | None = None,
+    around_summit: list[int] | None = None,
+    overwrite: bool = False,
+):
 
-    title = os.path.splitext(file.split('/')[-1])[0]
-    peakDF = readPeak(file)
-    print('*' * 100)
-    print(file)
+    title = peak_file_path.stem
+    peak_df = read_peak_file(peak_file_path)
+    print("*" * 100)
+    print(peak_file_path)
 
-    if multiFilter:
-        filtered = peakDF.copy()
-        for i, filter in enumerate(multiFilter):
-            filterFunction, method = singleFilter(
-                filter=filter, method=multiFilterMethods[i], filename=file)
-            filtered = filterFunction(filtered, method=method)
+    title = get_title(title, filter_groups, around_summit)
+    output_fasta = output_dir / f"{title}_seqs.fasta"
+    output_table = output_fasta.with_suffix(".xlsx")
+
+    if output_fasta.exists() and not overwrite:
+        print(f"The result file exists {output_fasta}, skip.")
+        return output_fasta
+
+    peak_df = filter_peaks(peak_df, filter_groups)
+    if around_summit:
+        peak_df = change_location_to_summit(peak_df, *around_summit)
+
+    if genome_file_path.suffix in [".gb", ".gbk", ".gbff"]:
+        genome_seqs = list(SeqIO.parse(genome_file_path, "genbank"))
+    elif genome_file_path.suffix in [".fa", ".fasta", ".fna"]:
+        genome_seqs = list(SeqIO.parse(genome_file_path, "fasta"))
     else:
-        filterFunction, method = singleFilter(filter=filter, method=method, filename=file)
-        filtered = filterFunction(peakDF, method=method)
-    if len(filtered.index) <= 10:
-        print(f'Only {len(filtered.index)} peaks left, skip.')
-        return
+        raise Exception(f"Genome file {genome_file_path} not supported")
 
-    peakPositions = {}
-    for index in filtered.index:
-        peakPositions[index] = list(
-            filtered.loc[index, ['start', 'end']].astype(int))
-        if type(peakPositions[index][0]) != int:
-            raise Exception(
-                f'some thing wrong with \n{index}\n{filtered.loc[index,:]}')
+    peak_seqs = slice_seq_concurrent(genome_seqs, get_peak_info(peak_df))
 
-    ext = os.path.splitext(genomeFile)[1]
-    if ext[1:] in ['gb', 'genbank', 'gff']:
-        genome = SeqIO.read(genomeFile, 'genbank')
-    elif ext[1:] in ['fa', 'fasta', 'faa']:
-        genome = SeqIO.read(genomeFile, 'fasta')
-    else:
-        raise NameError(genomeFile, ext)
-
-    if multiFilter == False:
-        title = addTitle(filtered, title, filter, method)
-    else:
-        for i, filter in enumerate(multiFilter):
-            title = addTitle(filtered, title, filter, multiFilterMethods[i])
-
-    print(f'Output file {title}_seqs.fasta')
-    if os.path.isfile(output):
-        print(f'The result file exists for {filter} | {method}, skip.')
-    else:
-        peakSeqs = getSeq(genome, peakPositions)
-        SeqIO.write(peakSeqs,
-                    output,
-                    'fasta')
-    outputTable = f'{output}.xlsx'
-    if os.path.isfile(outputTable):
-        print(f'The result file exists for {filter} | {method}, skip.')
-    else:
-        filtered.to_excel(outputTable)
+    print(f"Output file\n{output_fasta}\n{output_table}")
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
+    SeqIO.write(peak_seqs, output_fasta, "fasta")
+    peak_df.to_excel(output_table)
+    return output_fasta
 
 
-filterMethod = {'fold': ['single', 'min', 'max'],
-                'length': [[300, 500], 'dist', 'polyfit'],
-                'summit': [150],
-                'likely': [1, 100],
-                'none': [None]}
-fileFilterMethod = {'.xls': {'fold': [0], 'length': [0, 1, 2], 'summit': [0], 'none': [0]},
-                    'common_peaks.tsv': {'fold': [1, 2], 'length': [0], 'summit': [0], 'none': [0]},
-                    'uniq_peaks.tsv': {'fold': [0], 'length': [0], 'summit': [0], 'none': [0]},
-                    'common.bed': {'length': [0], 'likely': [0], 'none': [0]},
-                    'cond1.bed': {'length': [0], 'likely': [1], 'none': [0]},
-                    'cond2.bed': {'length': [0], 'likely': [1], 'none': [0]},
-                    }
-files = [
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/ChIP-25h_keepDup_model/ChIP-25h_peaks.xls',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/ChIP-48h_keepDup_model/ChIP-48h_peaks.xls',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks/25-48_common_peaks.tsv',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks/25-48_25_uniq_peaks.tsv',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks/25-48_48_uniq_peaks.tsv',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks/48-25_common_peaks.tsv',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks/48-25_25_uniq_peaks.tsv',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks/48-25_48_uniq_peaks.tsv',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks_macs2/25-48_c3.0_common.bed',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks_macs2/25-48_c3.0_cond1.bed',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks_macs2/25-48_c3.0_cond2.bed',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks_macs2/25-48_c5.0_common.bed',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks_macs2/25-48_c5.0_cond1.bed',
-    '/Users/durand.dc/Desktop/ChIP1839/peak_calling/diff_peaks_macs2/25-48_c5.0_cond2.bed',
-]
+def combine_filenames(file_paths):
+    assert len(file_paths) >= 2
+    file_names = [f.name for f in file_paths]
+    p1 = file_paths[0].parent
+    assert all(f.parent == p1 for f in file_paths[1:])
+    f1 = file_names[0]
 
-if __name__ == '__main__':
-    import argparse
+    # Get prefix
+    prefix_len = 0
+    for i, c in enumerate(f1):
+        if not all(f[i] == c for f in file_names):
+            break
+        prefix_len = i + 1
+
+    # Get suffix
+    suffix_len = 0
+    for i in range(1, len(f1) + 1):
+        if not all(f[-i] == f1[-i] for f in file_names):
+            break
+        suffix_len = i
+
+    # Extract unique parts between prefix and suffix
+    unique_parts = []
+    for fname in file_names:
+        middle = fname[prefix_len : len(fname) - suffix_len]
+        unique_parts.append(middle)
+
+    # Combine parts
+    combined_middle = "_".join(sorted(unique_parts))
+
+    # Reconstruct filename
+    new_name = Path(f1[:prefix_len] + combined_middle + f1[-suffix_len:])
+    new_name = new_name.stem + "_combined" + new_name.suffix
+    return p1 / new_name
+
+
+def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-g', '--genome', help='genome file, fastta or genbank')
-    parser.add_argument('-f', '--files', nargs="+")
-    parser.add_argument('--filter', help='''
-    filter method, use one of the keys of dict
-    filterMethod = {'fold': ['single', 'min', 'max'],
-                    'length': [[300, 500], 'dist', 'polyfit'],
-                    'summit': [150],
-                    'likely': [1, 100],
-                    'none': [None]}
-     ''')
-    parser.add_argument('-o', help='output path')
-    parser.add_argument('--likely', help='threshold for filter "likely"')
+    parser.add_argument(
+        "--genome", type=Path, help="genome file, fastta or genbank"
+    )
+    parser.add_argument("--files", type=Path, nargs="+")
+    parser.add_argument(
+        "--around_summit",
+        nargs=2,
+        help=(
+            "Left and right "
+            "around summit to extract sequence, will ignore "
+            "start and end location in the peak file"
+        ),
+    )
+    parser.add_argument(
+        "--filter",
+        nargs="+",
+        action="append",
+        default=[["none"]],
+        help="""
+    filter method, eg.
+    --filter chr NC_0888.1 NC_0889.1 NC_0890.1 --filter length 100 300
+    You can use multiple filters by passing multiple arguments
+     """,
+    )
+    parser.add_argument("-o", "--output", type=Path, help="output dir")
+    parser.add_argument(
+        "-f",
+        "--overwrite",
+        action="store_true",
+        help="overwrite existing files",
+    )
 
     args = parser.parse_args()
     genome = args.genome
     files = args.files
-    fm = args.filter
-    fmlikely = args.likely
-    outputPath = args.o
+    filter_args = args.filter
+    output_dir = args.output
+    if output_dir.exists():
+        assert output_dir.is_dir()
 
-    if not os.path.isdir(outputPath):
-        os.makedirs(outputPath)
-    
+    filters = parse_filter_args(filter_args)
+
+    output_fastas = []
     for file in files:
-        output = os.path.join(outputPath, f'{os.path.splitext(os.path.split(file)[1])[0]}.fa')
-        pullPeakSequences(genome, file, output, filter=fm, method=fmlikely)
+        output_fastas.append(
+            extract_seq_peaks_to_file(
+                genome, file, output_dir, filters, overwrite=args.overwrite
+            )
+        )
+
+    if len(output_fastas) > 1:
+        new_filename = combine_filenames(output_fastas)
+        combined_fasta = output_dir / new_filename
+        print("*" * 100)
+        print("Multiple files processed, generating a combined fasta file")
+        with open(combined_fasta, "w") as out:
+            for fasta in output_fastas:
+                with open(fasta) as f:
+                    out.write(f.read())
+        print(f"Combined fasta file:\n{combined_fasta}")
+
+
+if __name__ == "__main__":
+    main()

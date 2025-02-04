@@ -4,6 +4,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from Bio.SeqFeature import FeatureLocation
 from collections.abc import Iterable
+from pyBioinfo_modules.bio_sequences.bio_features import seqFeature_to_tuple
 
 
 class VarianceData(TypedDict):
@@ -130,7 +131,7 @@ def applyVarianceDataOnSeqRecord(
         'transgenic', 'translation', 'transl_except', 'transl_table',
         'trans_splicing' 'type_material', 'variety'
     ]
-    
+
     # Valid VCF file do not need this step. But who knows.
     varianceDatas = sorted(varianceDatas, key=lambda vd: vd['POS'])
 
@@ -151,6 +152,12 @@ def applyVarianceDataOnSeqRecord(
         allFeatures_endSorted = sorted(
             newSeqRecord.features, key=lambda f: f.location.end
         )
+        feattuples_startSorted = [
+            seqFeature_to_tuple(feat) for feat in allFeatures_startSorted
+        ]
+        feattuples_endSorted = [
+            seqFeature_to_tuple(feat) for feat in allFeatures_endSorted
+        ]
         start = varianceData['POS'] - 1 + (len(newSeqRecord) - len(seqRecord))
         assert newSeqRecord[start].lower() == varianceData['REF'][0].lower()
         length = len(varianceData['REF'])
@@ -163,13 +170,21 @@ def applyVarianceDataOnSeqRecord(
 
         # Magick:
         if nFeaturesDownStream == 0:
-            upStreamFeatures = set(allFeatures_startSorted)
+            upStreamFeattuples = set(feattuples_startSorted)
         else:
-            upStreamFeatures = set(
-                allFeatures_startSorted[:-nFeaturesDownStream])
-        downStreamFeatures = set(allFeatures_endSorted[nFeaturesUpStream:])
-        affectedFeatures = list(
-            upStreamFeatures.intersection(downStreamFeatures))
+            upStreamFeattuples = set(
+                feattuples_startSorted[:-nFeaturesDownStream]
+            )
+        downStreamFeattuples = set(feattuples_endSorted[nFeaturesUpStream:])
+        affectedFeature_indexs = [
+            feattuples_startSorted.index(feattuple)
+            for feattuple in list(
+                upStreamFeattuples.intersection(downStreamFeattuples)
+            )
+        ]
+        affectedFeatures = [
+            allFeatures_startSorted[i] for i in affectedFeature_indexs
+        ]
 
         # add affected features back
         mutFeatures = []
