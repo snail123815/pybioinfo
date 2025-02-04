@@ -1,4 +1,11 @@
-from Bio.SeqFeature import SeqFeature, FeatureLocation
+from Bio.SeqFeature import (
+    SeqFeature,
+    FeatureLocation,
+    BeforePosition,
+    AfterPosition,
+    ExactPosition,
+)
+from Bio.SeqRecord import SeqRecord
 from math import ceil
 
 
@@ -164,7 +171,9 @@ def getSpanFetures(genome, startOri, endOri, expand=20000):
 # Convert SeqFeature to hashable tuple
 def seqFeature_to_tuple(seqFeature):
     qualifier_keys = tuple(sorted(seqFeature.qualifiers.keys()))
-    qualifier_values = tuple(tuple(seqFeature.qualifiers[key]) for key in qualifier_keys)
+    qualifier_values = tuple(
+        tuple(seqFeature.qualifiers[key]) for key in qualifier_keys
+    )
     return (
         seqFeature.type,
         seqFeature.location.start,
@@ -173,3 +182,96 @@ def seqFeature_to_tuple(seqFeature):
         qualifier_keys,
         qualifier_values,
     )
+
+
+def slice_sequence(
+    sourceSeq: SeqRecord,
+    location: FeatureLocation,
+    id=None,
+    with_features=False,
+):
+    rc = False
+    if isinstance(location, FeatureLocation):
+        start = location.start
+        end = location.end
+        if location.strand == -1:
+            rc = True
+    else:
+        assert len(location) == 2
+        start, end = location
+        # Validate indices
+        if start < 0 or end < 0:
+            raise ValueError("Negative indices not allowed")
+        if start >= end:
+            raise ValueError("Start must be less than end")
+        if end > len(sourceSeq):
+            raise ValueError("End position exceeds sequence length")
+    sliced = sourceSeq[start:end]
+    # Expand features if the cut location is inside features
+    descrip = []
+    if with_features:
+        # Add features, add gene names to description
+        sliced.features.extend(getSpanFetures(sourceSeq, start, end))
+        if len(sliced.features) > 0:
+            for feat in sliced.features:
+                if feat.type == "gene":
+                    try:
+                        descrip.append(feat.qualifiers["locus_tag"][0])
+                    except:
+                        pass
+    else:
+        sliced = SeqRecord(
+            sliced.seq,
+            name=sliced.name,
+            dbxrefs=sliced.dbxrefs,
+            annotations=sliced.annotations,
+        )
+    if rc:
+        sliced = reverse_complement_with_features(sliced)
+    sliced.id = f"{sourceSeq.id}_{start}-{end}" if id is None else id
+    if descrip:
+        sliced.description = "-".join(descrip).replace(" ", "_")
+    return sliced
+
+
+def reverse_complement_with_features(record: SeqRecord):
+    new_seq = record.seq.reverse_complement()
+    new_features = []
+    seq_length = len(record)
+
+    for f in record.features:
+        new_start = rev_pos(seq_length, f.location.end)
+        new_end = rev_pos(seq_length, f.location.start)
+        new_strand = (
+            None
+            if f.location.strand is None
+            else (-f.location.strand if f.location.strand else 0)
+        )
+        new_location = FeatureLocation(new_start, new_end, strand=new_strand)
+        f.location = new_location
+        new_features.append(f)
+
+    new_record = SeqRecord(
+        new_seq,
+        id=record.id,
+        name=record.name,
+        features=new_features,
+        description=record.description,
+        dbxrefs=record.dbxrefs,
+        annotations=record.annotations,
+        letter_annotations=record.letter_annotations,
+    )
+
+    return new_record
+
+
+def rev_pos(seq_length, pos):
+    new_pos = seq_length - pos
+    if isinstance(pos, BeforePosition):
+        return AfterPosition(new_pos)
+    elif isinstance(pos, AfterPosition):
+        return BeforePosition(new_pos)
+    elif isinstance(pos, ExactPosition):
+        return ExactPosition(new_pos)
+    else:
+        return new_pos
