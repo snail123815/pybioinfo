@@ -210,19 +210,49 @@ def multiple_raw_align_bowtie2(
     dryRun: bool,
 ):
     """
-    Align multiple raw RNA-Seq samples using Bowtie2.
+    Align multiple raw reads to reference genome(s) using Bowtie2 and convert outputs to BAM format.
 
     Args:
-        raw (list[Path]): List of paths to raw data files.
-        sampleNames (list[str] | None): List of sample names. Defaults to None.
-        out (Path): Output directory for the alignment results.
-        isPe (bool): Whether the data is paired-end.
-        genomes (list[Path]): List of genome file paths.
-        ncpu (int): Number of CPUs to use.
-        dryRun (bool): If True, perform a dry run without executing Bowtie2.
+        raw (list[Path]): List of paths to directories containing FASTQ files (.fastq/.fq, can be gzipped).
+                         Will search up to 2 levels deep in each directory.
+        sampleNames (list[str] | None): Optional list of sample names. If None:
+            - For paired-end: Names are derived from file prefixes before PE suffixes
+            - For single-end: Each file name becomes a sample name
+        out (Path): Output directory that will contain:
+            - {sample_name}.bam: Sorted BAM file for each sample
+            - {sample_name}.bam.csi: BAM index file (.bai for oler versions of bamtools)
+            - {sample_name}.done: Flag file indicating completion
+            - genomeIdx/: Directory containing Bowtie2 index files
+            - align.log: Alignment log file
+        isPe (bool): Whether input is paired-end sequencing data
+            - True: Files must come in pairs with suffixes like _R1/_R2
+            - False: Each file is treated as a separate single-end sample
+        genomes (list[Path]): List of reference genome files. Accepts:
+            - FASTA format (.fa, .fasta, .fna, .fsa)
+            - GenBank format (will be converted to FASTA)
+        ncpu (int): Number of CPU threads to use for alignment
+        dryRun (bool): If True, shows commands without executing them
+
+    Behavior:
+        1. Creates Bowtie2 index from genome file(s) if not already present
+        2. For each sample:
+            - Groups FASTQ files by sample name
+            - For paired-end, identifies and pairs R1/R2 files
+            - Runs Bowtie2 alignment
+            - Pipes output through samtools to create sorted BAM + index
+        3. Logs progress and timing information to align.log
+
+    Examples of valid input files:
+        Paired-end:
+            - sample1_R1.fastq.gz, sample1_R2.fastq.gz
+            - sample2_1.fq, sample2_2.fq
+        Single-end:
+            - sample1.fastq
+            - sample2.fq.gz
     """
     # Start logic
     logger.addHandler(logging.FileHandler(out / "align.log"))
+    logger.setLevel(logging.INFO)
     logger.info("=" * 20 + getTimeStr() + "=" * 20)
     if dryRun:
         logger.debug("=" * 20 + "Dry run, will not execute bowtie2")
