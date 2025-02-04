@@ -1,12 +1,13 @@
+from math import ceil
+
 from Bio.SeqFeature import (
-    SeqFeature,
-    FeatureLocation,
-    BeforePosition,
     AfterPosition,
+    BeforePosition,
     ExactPosition,
+    FeatureLocation,
+    SeqFeature,
 )
 from Bio.SeqRecord import SeqRecord
-from math import ceil
 
 
 def getSpanFetures(genome, startOri, endOri, expand=20000):
