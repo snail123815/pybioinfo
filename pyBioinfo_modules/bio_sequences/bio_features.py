@@ -12,163 +12,107 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 
 
-def getSpanFetures(genome, startOri, endOri, expand=20000):
-    newStart = max(0, startOri - expand)
-    newEnd = min(len(genome), endOri + expand)
-    sourceSeq = genome[newStart:newEnd]
+def getSpanFetures(
+    source_seq: SeqRecord,
+    location: tuple[int, int] | FeatureLocation,
+    expand: int = 20000,
+    include_inner_feats: bool = False,
+):
+    """Get features from a sequence region with proper handling of truncated
+    features. Scanning the region with optional expansion, for features that
+    might be truncated by splicing.
+    0-based indexing is used for start and end positions.
 
-    start = startOri - newStart
-    end = start + (endOri - startOri)
+    Args:
+        source_seq (SeqRecord): Source sequence record.
+        location (tuple[int, int] | FeatureLocation): Start and end positions in genome coordinates (0-based, inclusive start, exclusive end) or a FeatureLocation object.
+        expand (int, optional): Number of bases to expand the region by. Defaults to 20000 to include larger features produced by antismash.
+        include_inner_feats (bool, optional): Whether to include features that are completely within the region. Defaults to False.
+
+    Returns:
+        list[SeqFeature]: List of features in the region with proper truncation handling
+    """
+    # Calculate region boundaries with expansion
+    if isinstance(location, FeatureLocation):
+        start = int(location.start)
+        end = int(location.end)
+    else:
+        start, end = location
+    expand_start = max(0, start - expand)
+    expand_end = min(
+        len(source_seq), end + expand
+    )  # +1 to include end position
 
     spanFeats = []
-    for feat in sourceSeq.features:
-        spanStart = start in feat
-        spanEnd = end in feat
-        # feat.__contains__(self, value)
-        # Check if an integer position is within the feature.
-
-        spanFeat = SeqFeature(type=feat.type)
-
-        if spanStart and spanEnd:
-            # Target position is inside feature
-            if feat.type == "CDS":
-                # calculate correct start and end location to make it inframe
-                newStart = (3 - abs(start - feat.location.start)) % 3
-                newEnd = end - start - abs(end - feat.location.start) % 3
-            else:
-                newStart = 0
-                newEnd = end - start
-            spanFeat.location = FeatureLocation(
-                newStart, newEnd, strand=feat.location.strand
-            )
-            for key in feat.qualifiers:
-                if key in [
-                    "gene_synonym",
-                    "locus_tag",
-                    "product",
-                    "protein_id",
-                    "db_xref",
-                    "mol_type",
-                ]:
-                    spanFeat.qualifiers[key] = [
-                        f"{keyStr} (slice)" for keyStr in feat.qualifiers[key]
-                    ]
-                elif key == "translation":
-                    spanFeat.qualifiers[key] = list(feat.qualifiers[key])
-                    if feat.location.strand == 1:
-                        cutPointA = ceil((start - feat.location.start) / 3)
-                        cutPointB = (end - feat.location.start) // 3
-                    else:
-                        len(spanFeat.qualifiers[key][0])
-                        cutPointA = (
-                            len(spanFeat.qualifiers[key][0])
-                            + 1
-                            - (end - feat.location.start) // 3
-                        )
-                        cutPointB = (
-                            len(spanFeat.qualifiers[key][0])
-                            + 1
-                            - ceil((start - feat.location.start) / 3)
-                        )
-                    spanFeat.qualifiers[key][0] = spanFeat.qualifiers[key][0][
-                        cutPointA:cutPointB
-                    ]
-                else:
-                    spanFeat.qualifiers[key] = feat.qualifiers[key]
-            spanFeats.append(spanFeat)
-
-        elif spanStart:
-            # Start position inside feature, feature ends in this range
-            if feat.type == "CDS":
-                newStart = (3 - abs(start - feat.location.start)) % 3
-            else:
-                newStart = 0
-            newEnd = feat.location.end - start
-            spanFeat.location = FeatureLocation(
-                newStart, newEnd, strand=feat.location.strand
-            )
-            for key in feat.qualifiers:
-                if key in [
-                    "gene_synonym",
-                    "locus_tag",
-                    "product",
-                    "protein_id",
-                    "db_xref",
-                    "mol_type",
-                ]:
-                    spanFeat.qualifiers[key] = [
-                        f"{keyStr} (right part)"
-                        for keyStr in feat.qualifiers[key]
-                    ]
-                elif key == "translation":
-                    spanFeat.qualifiers[key] = [
-                        keyStr for keyStr in feat.qualifiers[key]
-                    ]
-                    if feat.location.strand == 1:
-                        cutPoint = (
-                            len(spanFeat.qualifiers[key][0])
-                            - ceil(len(spanFeat) / 3)
-                            + 1
-                        )
-                        spanFeat.qualifiers[key][0] = spanFeat.qualifiers[key][
-                            0
-                        ][cutPoint:]
-                    else:
-                        cutPoint = len(spanFeat) // 3
-                        spanFeat.qualifiers[key][0] = spanFeat.qualifiers[key][
-                            0
-                        ][:cutPoint]
-                else:
-                    spanFeat.qualifiers[key] = feat.qualifiers[key]
-            spanFeats.append(spanFeat)
-
-        elif spanEnd:
-            # End position inside feature, feature ends in this range
-            if feat.type == "CDS":
-                newEnd = end - start - abs(end - feat.location.start) % 3
-            else:
-                newEnd = end - start
-            newStart = feat.location.start - start
-            spanFeat.location = FeatureLocation(
-                newStart, newEnd, strand=feat.location.strand
-            )
-            for key in feat.qualifiers:
-                if key in [
-                    "gene_synonym",
-                    "locus_tag",
-                    "product",
-                    "protein_id",
-                    "db_xref",
-                    "mol_type",
-                ]:
-                    spanFeat.qualifiers[key] = [
-                        f"{keyStr} (left part)"
-                        for keyStr in feat.qualifiers[key]
-                    ]
-                elif key == "translation":
-                    spanFeat.qualifiers[key] = list(feat.qualifiers[key])
-                    if feat.location.strand == 1:
-                        cutPoint = len(spanFeat) // 3
-                        spanFeat.qualifiers[key][0] = spanFeat.qualifiers[key][
-                            0
-                        ][:cutPoint]
-                    else:
-                        cutPoint = ceil((len(feat) - len(spanFeat)) / 3)
-                        spanFeat.qualifiers[key][0] = spanFeat.qualifiers[key][
-                            0
-                        ][cutPoint:]
-                else:
-                    spanFeat.qualifiers[key] = feat.qualifiers[key]
-            spanFeats.append(spanFeat)
-
-        else:
-            # Not in range, ignore
+    for feat in source_seq[expand_start:expand_end].features:
+        all_in = (
+            start <= feat.location.start <= end
+            and start <= feat.location.end <= end
+        )
+        if all_in and not include_inner_feats:
+            # Feature will be included by splicing
             continue
+        left_in = (
+            start <= feat.location.start <= end and feat.location.end > end
+        )
+        right_in = (
+            feat.location.start <= start and start <= feat.location.end <= end
+        )
+        span = feat.location.start <= start and feat.location.end >= end
+        if sum([all_in, left_in, right_in, span]) == 0:
+            continue
+        if sum([all_in, left_in, right_in, span]) > 1:
+            assert feat.location.start == feat.location.end, (
+                "Feature should be either in one of the categories: "
+                "all_in, left_in, right_in, span"
+                "or have a length of 1 (start == end)"
+            )
+            spanFeats.append(deepcopy(feat))
 
-    return spanFeats
+        # Create new feature with copied qualifiers
+        newFeat = deepcopy(feat)
 
+        # Feature completely within region
+        if all_in:
+            newFeat.location = FeatureLocation(
+                feat.location.start - start,
+                feat.location.end - start,
+                feat.location.strand,
+            )
+        # Feature left side in region, truncated on its right
+        elif left_in:
+            newFeat.location = FeatureLocation(
+                feat.location.start - start,
+                AfterPosition(end - start),
+                feat.location.strand,
+            )
+            newFeat.qualifiers["truncated"] = ["right"]
+        # Feature right side in region, truncated on its left
+        elif right_in:
+            newFeat.location = FeatureLocation(
+                BeforePosition(0),
+                feat.location.end - start,
+                feat.location.strand,
+            )
+            newFeat.qualifiers["truncated"] = ["left"]
+        # Feature spans the region
+        elif span:
+            newFeat.location = FeatureLocation(
+                BeforePosition(0),
+                AfterPosition(end - start),
+                feat.location.strand,
+            )
+            newFeat.qualifiers["truncated"] = ["both_sides"]
+        else:
+            raise ValueError(
+                "Feature should be either in one of the categories: "
+                "all_in, left_in, right_in, span"
+                "or have a length of 1"
+            )
+        spanFeats.append(newFeat)
 
-# getSpanFetures
+    # Sort features by start position
+    return sorted(spanFeats, key=lambda f: f.location.start)
 
 
 # Convert SeqFeature to hashable tuple
