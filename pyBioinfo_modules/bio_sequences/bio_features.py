@@ -57,7 +57,7 @@ def truncate_feat_translation(
             t = s.translate(table=codon_table, to_stop=False, stop_symbol="")
             if len(t) >= len(feat) - 2:
                 if t in feat.qualifiers["translation"][0]:
-                    possible_ts.append((i,t))
+                    possible_ts.append((i, t))
         if len(possible_ts) == 0:
             translation = ""
             codon_start = 0
@@ -75,7 +75,7 @@ def truncate_feat_translation(
             )
         # Update feature location
         if feat.location.strand == -1:
-            feat.location.end = len(feat)-codon_start
+            feat.location.end = len(feat) - codon_start
             feat.location.start = feat.location.end - len(feat) + len(feat) % 3
         else:
             feat.location.start = codon_start
@@ -164,6 +164,8 @@ def find_truncated_features(
                 AfterPosition(end - start),
                 feat.location.strand,
             )
+            if feat.type == "CDS":
+                truncate_feat_translation(newFeat, side="right")
             newFeat.qualifiers["truncated"] = ["right"]
         # Feature right side in region, truncated on its left
         elif right_in:
@@ -182,6 +184,10 @@ def find_truncated_features(
                 AfterPosition(end - start),
                 feat.location.strand,
             )
+            if feat.type == "CDS":
+                truncate_feat_translation(
+                    newFeat, side="both_sides", on_seq=source_seq[start:end].seq
+                )
             newFeat.qualifiers["truncated"] = ["both_sides"]
         else:
             raise ValueError(
@@ -261,54 +267,6 @@ def slice_sequence(
     else:
         sliced.description = f"{sourceSeq.id}_{start}-{end}"
     return sliced
-
-
-def slice_seq_record_preserve_truncated(
-    seq_record: SeqRecord, slice_tuple: tuple[int, int]
-) -> SeqRecord:
-    sliced_rec = seq_record[slice_tuple[0] : slice_tuple[1]]
-    truncated_features_left = []
-    truncated_features_right = []
-    for feature in seq_record.features:
-        if feature.location.start < slice_tuple[0] < feature.location.end:
-            feat = deepcopy(feature)
-            feat.location = (
-                FeatureLocation(
-                    BeforePosition(slice_tuple[0]),
-                    (
-                        feat.location.end
-                        if feat.location.end <= slice_tuple[1]
-                        else AfterPosition(slice_tuple[1])
-                    ),
-                    feat.location.strand,
-                )
-                - slice_tuple[0]
-            )
-            feat.id = f"{feature.id}_truncated"
-            feat.qualifiers["truncated"] = ["left"]
-            truncated_features_left.append(feat)
-            continue
-        if feature.location.start < slice_tuple[1] < feature.location.end:
-            feat = deepcopy(feature)
-            feat.location = (
-                FeatureLocation(
-                    (
-                        feat.location.start
-                        if feat.location.start >= slice_tuple[0]
-                        else BeforePosition(slice_tuple[0])
-                    ),
-                    AfterPosition(slice_tuple[1]),
-                    feat.location.strand,
-                )
-                - slice_tuple[0]
-            )
-            feat.id = f"{feature.id}_truncated"
-            feat.qualifiers["truncated"] = ["right"]
-            truncated_features_right.append(feat)
-    sliced_rec.features = (
-        truncated_features_left + sliced_rec.features + truncated_features_right
-    )
-    return sliced_rec
 
 
 def add_seq_to_SeqRecord_as_feature(
