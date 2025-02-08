@@ -388,8 +388,8 @@ def reverse_complement_seqrecord_with_features(record: SeqRecord) -> SeqRecord:
 def reverse_complement_position(
     seq_length: int, pos: int | BeforePosition | AfterPosition | ExactPosition
 ) -> int | BeforePosition | AfterPosition | ExactPosition:
-    """Reverse complement a position on a sequence of length seq_length.
-    Takes care of fuzzy positions.
+    """Reverse complement a single position on a sequence of length
+    seq_length. Takes care of fuzzy positions.
     """
     new_pos = seq_length - pos
     if isinstance(pos, BeforePosition):
@@ -400,3 +400,35 @@ def reverse_complement_position(
         return ExactPosition(new_pos)
     else:
         return new_pos
+
+
+def reverse_complement_location(
+    seq_length: int,
+    location: FeatureLocation | tuple[int, int, int | None] | tuple[int, int],
+) -> FeatureLocation:
+    """Reverse complement a location (start, end, [strand]) on a sequence
+    of length seq_length. Takes care of fuzzy positions.
+    ALWAYS returns a FeatureLocation object!
+
+    Args:
+        seq_length (int): Length of the sequence.
+        location (FeatureLocation | tuple[int, int]):
+                          Location to reverse complement. Tuple can contain
+                          a third element for the strand [-1,1,None].
+
+    Returns:
+        FeatureLocation: Reversed location.
+    """
+    if isinstance(location, tuple):
+        if len(location) == 2:
+            location = FeatureLocation(location[0], location[1])
+        elif len(location) == 3:
+            assert location[2] in [None, 1, -1], "Strand must be 1, -1 or None"
+            location = FeatureLocation(location[0], location[1], location[2])
+        else:
+            raise ValueError("Location must be a tuple of length 2 or 3")
+    return FeatureLocation(
+        reverse_complement_position(seq_length, location.end),
+        reverse_complement_position(seq_length, location.start),
+        strand=None if location.strand is None else -location.strand,
+    )
