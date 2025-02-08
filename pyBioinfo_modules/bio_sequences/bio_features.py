@@ -223,6 +223,24 @@ def slice_sequence(
     id: str | None = None,
     with_features=False,
 ):
+    """Slice a SeqRecord with a FeatureLocation object. The sliced sequence
+    will have the same features as the source sequence, but they will be
+    adjusted to the new sequence coordinates. Features located on the ends
+    of the sliced sequence will be kept but truncated. Truncated features will
+    have a "truncated" qualifier added to them.
+
+    Args:
+        sourceSeq (SeqRecord): Source sequence to slice.
+        location (FeatureLocation): Location of the slice.
+        id (str, optional): ID of the new sequence. Defaults to None.
+        with_features (bool, optional): Whether to include features in the
+                                        sliced sequence. Defaults to False.
+
+    Returns:
+        SeqRecord: Sliced sequence.
+                   Attributes 'id' and 'description' will be set to
+                   "{sourceSeq.id}_{start}-{end}_rc" if id is None.
+    """
     rc = False
     if isinstance(location, FeatureLocation):
         start = location.start
@@ -260,8 +278,11 @@ def slice_sequence(
             annotations=sliced.annotations,
         )
     if rc:
-        sliced = reverse_complement_with_features(sliced)
-    sliced.id = f"{sourceSeq.id}_{start}-{end}" if id is None else id
+        sliced = reverse_complement_seqrecord_with_features(sliced)
+    if id:
+        sliced.id = id
+    else:
+        sliced.id = f"{sourceSeq.id}_{start}-{end}{'_rc' if rc else ''}"
     if descrip:
         sliced.description = "-".join(descrip).replace(" ", "_")
     else:
@@ -280,6 +301,15 @@ def add_seq_to_SeqRecord_as_feature(
     correct strand and location for the target sequence.
     If a primer bind sequence is provided, it will check if there is
     5' overhang, and avoid that.
+
+    Args:
+        seq_record (SeqRecord): Sequence record to add the feature to.
+        target_seq (Seq): Sequence to add as a feature.
+        feature_type (str, optional): Type of feature to add. Defaults to "feature".
+        qualifiers (dict, optional): Qualifiers for the feature. Defaults to {}.
+
+    Returns:
+        SeqRecord: Sequence record with the added feature.
     """
 
     if (
@@ -322,14 +352,16 @@ def add_seq_to_SeqRecord_as_feature(
     raise ValueError("Oligo not found in sequence")
 
 
-def reverse_complement_with_features(record: SeqRecord):
+def reverse_complement_seqrecord_with_features(record: SeqRecord) -> SeqRecord:
+    """Reverse complement a SeqRecord, process its features to fit in
+    the new SeqRecord."""
     new_seq = record.seq.reverse_complement()
     new_features = []
     seq_length = len(record)
 
     for f in record.features:
-        new_start = rev_pos(seq_length, f.location.end)
-        new_end = rev_pos(seq_length, f.location.start)
+        new_start = reverse_complement_position(seq_length, f.location.end)
+        new_end = reverse_complement_position(seq_length, f.location.start)
         new_strand = (
             None
             if f.location.strand is None
@@ -353,7 +385,12 @@ def reverse_complement_with_features(record: SeqRecord):
     return new_record
 
 
-def rev_pos(seq_length, pos):
+def reverse_complement_position(
+    seq_length: int, pos: int | BeforePosition | AfterPosition | ExactPosition
+) -> int | BeforePosition | AfterPosition | ExactPosition:
+    """Reverse complement a position on a sequence of length seq_length.
+    Takes care of fuzzy positions.
+    """
     new_pos = seq_length - pos
     if isinstance(pos, BeforePosition):
         return AfterPosition(new_pos)
