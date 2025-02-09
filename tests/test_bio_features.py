@@ -11,8 +11,6 @@ from Bio.SeqFeature import (
 
 from pyBioinfo_modules.bio_sequences.bio_features import (
     truncate_feat_translation,
-    find_truncated_features,
-    slice_sequence_keep_truncated_features,
     seqFeature_to_tuple,
     add_seq_to_SeqRecord_as_feature,
     reverse_complement_SeqRecord_with_features,
@@ -22,6 +20,94 @@ from pyBioinfo_modules.bio_sequences.bio_features import (
 
 
 class TestBioFeatures(unittest.TestCase):
+
+    def test_truncate_feat_translation(self):
+        feat_no_translation = SeqFeature(
+            FeatureLocation(3, 5, strand=-1),
+            qualifiers={"gene": ["test_gene"]},
+        )
+        with self.assertRaises(ValueError):
+            truncate_feat_translation(feat_no_translation, "left")
+
+        seq = Seq("cgtTCACT CGTGCACGCTCGCTGGCGTCGATTCTGCACTGGGCATGGGGCACA Tccc")
+        seq = Seq("cgtTCACTCGTGCACGCTCGCTGGCGTCGATTCTGCACTGGGCATGGGGCACATccc")
+        translation = "MCPMPSAESTPASVHE*"
+        origional_feat = SeqFeature(
+            FeatureLocation(3, 54, strand=-1),
+            type="CDS",
+            qualifiers={
+                "id": ["test_CDS"],
+                "translation": ["MCPMPSAESTPASVHE*"],
+            },
+        )
+        # Make sure the test itself is correct
+        self.assertEqual(
+            str(origional_feat.extract(seq).translate()), translation
+        )
+
+        truncated_feat = SeqFeature(
+            FeatureLocation(9, 54, strand=-1),
+            type="CDS",
+            qualifiers={
+                "id": ["test_CDS_truncated_left"],
+                "translation": ["MCPMPSAESTPASVHE*"],  # to be truncated
+                "truncated": ["left"],
+            },
+        )
+        truncated_feat_res = truncate_feat_translation(
+            truncated_feat, "left", inplace=False
+        )
+        self.assertEqual(
+            truncated_feat_res.qualifiers["translation"], ["MCPMPSAESTPASVH"]
+        )
+        truncate_feat_translation(truncated_feat, "left")
+        self.assertEqual(
+            truncated_feat.qualifiers["translation"], ["MCPMPSAESTPASVH"]
+        )
+
+        truncated_feat = SeqFeature(
+            FeatureLocation(3, 48, strand=-1),
+            type="CDS",
+            qualifiers={
+                "id": ["test_CDS_truncated_right"],
+                "translation": ["MCPMPSAESTPASVHE*"],  # to be truncated
+                "truncated": ["right"],
+            },
+        )
+        truncate_feat_translation(truncated_feat, "right")
+        self.assertEqual(
+            truncated_feat.qualifiers["translation"], ["PMPSAESTPASVHE*"]
+        )
+
+        truncated_feat = SeqFeature(
+            FeatureLocation(8, 50, strand=-1),
+            type="CDS",
+            qualifiers={
+                "id": ["test_CDS_truncated_right"],
+                "translation": ["MCPMPSAESTPASVHE*"],  # to be truncated
+                "truncated": ["right"],
+            },
+        )
+        truncate_feat_translation(truncated_feat, "both_sides", on_seq=seq)
+        self.assertEqual(
+            truncated_feat.qualifiers["translation"], ["PMPSAESTPASVH"]
+        )
+
+        truncated_feat = SeqFeature(
+            FeatureLocation(8, 50, strand=-1),
+            type="CDS",
+            qualifiers={
+                "id": ["test_CDS_truncated_right"],
+                "translation": ["MCPMPSAsSTPASVHE*"],  # Will not find
+                "truncated": ["right"],
+            },
+        )
+        truncate_feat_translation(truncated_feat, "both_sides", on_seq=seq)
+        self.assertEqual(
+            truncated_feat.qualifiers["translation"], [""]
+        )
+        with self.assertRaises(ValueError):
+            truncate_feat_translation(truncated_feat, "both_side", on_seq=seq, inplace=False)
 
     def test_seqFeature_to_tuple(self):
         feat1 = SeqFeature(
@@ -100,6 +186,13 @@ class TestBioFeatures(unittest.TestCase):
         self.assertEqual(pb_feat2.location.strand, -1)
         self.assertEqual(pb_feat2.qualifiers["id"], ["rev"])
         self.assertEqual(pb_feat2.qualifiers["overhang"], ["CCCG"])
+        with self.assertRaises(ValueError):
+            add_seq_to_SeqRecord_as_feature(
+                new_seq,
+                "CCCGtAAcgc",
+                "primer_bind",
+                {"id": ["rev"], "overhang": ["4"]},
+            )
 
     def test_reverse_complement_seqrecord_with_features(self):
         seq = SeqRecord(
@@ -165,6 +258,12 @@ class TestBioFeatures(unittest.TestCase):
         self.assertEqual(loc.strand, -1)
         with self.assertRaises(ValueError):
             reverse_complement_location(12, (3, 15, 1, 4))
+        with self.assertRaises(AssertionError):
+            reverse_complement_location(12, (3, 5, 2))
+        loc = reverse_complement_location(12, (3, 5, 1))
+        self.assertEqual(loc.start, 7)
+        self.assertEqual(loc.end, 9)
+        self.assertEqual(loc.strand, -1)
 
 
 if __name__ == "__main__":
