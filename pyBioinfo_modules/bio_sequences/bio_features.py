@@ -217,24 +217,21 @@ def seqFeature_to_tuple(seqFeature):
     )
 
 
-def slice_sequence(
-    sourceSeq: SeqRecord,
-    location: FeatureLocation,
+def slice_sequence_keep_truncated_features(
+    source_seqrec: SeqRecord,
+    location: FeatureLocation | tuple[int, int, int | None] | tuple[int, int],
     id: str | None = None,
-    with_features=False,
 ):
     """Slice a SeqRecord with a FeatureLocation object. The sliced sequence
     will have the same features as the source sequence, but they will be
-    adjusted to the new sequence coordinates. Features located on the ends
-    of the sliced sequence will be kept but truncated. Truncated features will
-    have a "truncated" qualifier added to them.
+    adjusted to the new sequence coordinates.
+    Truncated features will have a "truncated" qualifier added to them,
+    indicating which side of this feature is truncated ('left', 'right').
 
     Args:
         sourceSeq (SeqRecord): Source sequence to slice.
-        location (FeatureLocation): Location of the slice.
-        id (str, optional): ID of the new sequence. Defaults to None.
-        with_features (bool, optional): Whether to include features in the
-                                        sliced sequence. Defaults to False.
+        location (FeatureLocation | Tuple): Location of the slice.
+        id (str, optional): ID of the new sequence. Defaults to the origional.
 
     Returns:
         SeqRecord: Sliced sequence.
@@ -248,45 +245,45 @@ def slice_sequence(
         if location.strand == -1:
             rc = True
     else:
-        assert len(location) == 2
-        start, end = location
+        start, end = location[:2]
+        if len(location) == 3:
+            if location[2] == -1:
+                rc = True
+            elif location[2] != 1 and location[2] is not None:
+                raise ValueError(
+                    "Strand must be 1, -1 or None\n"
+                    f"Current location is {location}"
+                )
         # Validate indices
         if start < 0 or end < 0:
             raise ValueError("Negative indices not allowed")
         if start >= end:
-            raise ValueError("Start must be less than end")
-        if end > len(sourceSeq):
+            raise ValueError("Start must be less/equal than end")
+        if end > len(source_seqrec)+1:
             raise ValueError("End position exceeds sequence length")
-    sliced = sourceSeq[start:end]
+    sliced = source_seqrec[start:end]
     # Expand features if the cut location is inside features
     descrip = []
-    if with_features:
-        # Add features, add gene names to description
-        sliced.features.extend(find_truncated_features(sourceSeq, (start, end)))
-        if len(sliced.features) > 0:
-            for feat in sliced.features:
-                if feat.type == "gene":
-                    try:
-                        descrip.append(feat.qualifiers["locus_tag"][0])
-                    except:
-                        pass
-    else:
-        sliced = SeqRecord(
-            sliced.seq,
-            name=sliced.name,
-            dbxrefs=sliced.dbxrefs,
-            annotations=sliced.annotations,
-        )
+    # Add features, add gene names to description
+    sliced.features.extend(find_truncated_features(source_seqrec, (start, end)))
+    if len(sliced.features) > 0:
+        for feat in sliced.features:
+            if feat.type == "gene":
+                try:
+                    descrip.append(feat.qualifiers["locus_tag"][0])
+                except:
+                    pass
     if rc:
         sliced = reverse_complement_SeqRecord_with_features(sliced)
     if id:
         sliced.id = id
     else:
-        sliced.id = f"{sourceSeq.id}_{start}-{end}{'_rc' if rc else ''}"
+        sliced.id = f"{source_seqrec.id}_{start}-{end}{'_rc' if rc else ''}"
     if descrip:
-        sliced.description = "-".join(descrip).replace(" ", "_")
+        descrip.insert(0, sliced.id)
     else:
-        sliced.description = f"{sourceSeq.id}_{start}-{end}"
+        descrip = [sliced.id]
+    sliced.description = "-".join(descrip).replace(" ", "_")
     return sliced
 
 
@@ -327,8 +324,8 @@ def add_seq_to_SeqRecord_as_feature(
         except ValueError:
             overhang_len = len(qualifiers["overhang"][0])
             overhang_seq = Seq(qualifiers["overhang"][0])
-            assert (
-                to_add_seq.lower().startswith(str(overhang_seq.lower()))
+            assert to_add_seq.lower().startswith(
+                str(overhang_seq.lower())
             ), "Overhang not found in target sequence"
         match_seq = Seq(to_add_seq[overhang_len:].lower())
     else:
@@ -343,7 +340,7 @@ def add_seq_to_SeqRecord_as_feature(
         pass
     elif match_seq.reverse_complement() in seq_seq:
         on_strand = -1
-        match_seq=match_seq.reverse_complement()
+        match_seq = match_seq.reverse_complement()
     else:
         raise ValueError("Oligo not found in sequence")
 

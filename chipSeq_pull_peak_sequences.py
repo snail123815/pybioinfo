@@ -8,7 +8,9 @@ import pandas as pd
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-from pyBioinfo_modules.bio_sequences.bio_features import slice_sequence
+from pyBioinfo_modules.bio_sequences.bio_features import (
+    slice_sequence_keep_truncated_features,
+)
 from pyBioinfo_modules.chipseq.find_and_filter import (
     change_location_to_summit,
     filter_peaks,
@@ -36,7 +38,12 @@ def slice_seq_concurrent(
                 raise Exception(f"Chromosome {chr} not found in genome file")
             source_seq = sources[chr]
             futures.append(
-                executor.submit(slice_sequence, source_seq, loc, peak)
+                executor.submit(
+                    slice_sequence_keep_truncated_features,
+                    source_seq,
+                    loc,
+                    peak,
+                )
             )
         for future in concurrent.futures.as_completed(futures):
             sliceSeq = future.result()
