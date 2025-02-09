@@ -16,11 +16,16 @@ from Bio.Seq import Seq
 def truncate_feat_translation(
     feat: SeqFeature,
     side: Literal["left", "right", "both_sides"],
-    on_seq: Seq | None = None,
     codon_table=11,
-) -> SeqFeature:
+    on_seq: Seq | None = None,
+    inplace: bool = True,
+) -> None | SeqFeature:
     """Truncate the translation of a truncated CDS feature.
-    The feature must have a "translation" qualifier.
+    The feature must
+        1. Already been truncated to the correct location (length).
+        2. Have a "translation" qualifier.
+    Only the "translation" qualifier will be modified.
+    The feature length will be used to generate new translation.
 
     Args:
         feat (SeqFeature): Truncated feature.
@@ -28,35 +33,38 @@ def truncate_feat_translation(
         on_seq (Seq): Sequence where the feature lies, only necessary for "both_sides" truncation.
 
     Returns:
-        SeqFeature: Truncated feature with its translation fixed.
+        None: The feature will be modified in place.
+        | SeqFeature: If inplace is False, a new feature will be returned.
     """
     if not "translation" in feat.qualifiers:
-        return feat
+        raise ValueError("Feature must have a 'translation' qualifier")
     # Reverse translation if the feature is on the -1 strand
     # so that it follows the actual DNA sequence
+    if not inplace:
+        feat = deepcopy(feat)
     translation = feat.qualifiers["translation"][0]
     if feat.location.strand == -1:
         translation = translation[::-1]
 
+    max_translation_len = (
+        len(feat) // 3
+    )  # only used for left and right truncation
+
     if side == "left":
-        feat.location.start = len(feat) % 3
-        translation = translation[len(feat) % 3 :]
-    if side == "right":
-        feat.location.end = feat.location.start + len(feat) - len(feat) % 3
-        translation = translation[: len(feat) - len(feat) % 3]
-    else:
+        translation = translation[len(translation) - max_translation_len :]
+    elif side == "right":
+        translation = translation[:max_translation_len]
+    elif side == "both_sides":
         # Now I cannot know where the codon starts, so have to guess
         assert (
             on_seq is not None
-        ), "Sequence must be provided for 'both_sides' truncation"
+        ), "Sequence (on_seq parameter) must be provided for 'both_sides' truncation"
         possible_ts = []
         for i in [0, 1, 2]:
             s = feat.extract(on_seq)[i:]
-            if feat.location.strand == -1:
-                s = s.reverse_complement()
             t = s.translate(table=codon_table, to_stop=False, stop_symbol="")
-            if len(t) >= len(feat) - 2:
-                if t in feat.qualifiers["translation"][0]:
+            if len(t) >= max_translation_len - 2:
+                if str(t) in feat.qualifiers["translation"][0]:
                     possible_ts.append((i, t))
         if len(possible_ts) == 0:
             translation = ""
@@ -67,27 +75,27 @@ def truncate_feat_translation(
             codon_start = possible_t[0]
             translation = possible_t[1]
 
-            if "note" not in feat.qualifiers:
-                feat.qualifiers["note"] = []
-            feat.qualifiers["note"].append(
-                "Truncated translation was ambiguous, "
-                "the longest possible translation was chosen."
-            )
-        # Update feature location
-        if feat.location.strand == -1:
-            feat.location.end = len(feat) - codon_start
-            feat.location.start = feat.location.end - len(feat) + len(feat) % 3
-        else:
-            feat.location.start = codon_start
-            feat.location.end = codon_start + len(feat) - len(feat) % 3
+        if "note" not in feat.qualifiers:
+            feat.qualifiers["note"] = []
+        feat.qualifiers["note"].append(
+            "Truncated translation was ambiguous, "
+            "the longest possible translation was chosen. "
+            f"Codon start position: {codon_start} (0-based) "
+            f"from strand {feat.location.strand}"
+        )
+    else:
+        raise ValueError(
+            f"Side must be 'left', 'right' or 'both_sides' not {side}"
+        )
 
     # Reverse translation back if the feature is on the -1 strand
-    if feat.location.strand == -1:
+    if feat.location.strand == -1 and side != "both_sides":
         translation = translation[::-1]
 
     feat.qualifiers["translation"] = [translation]
 
-    return feat
+    if not inplace:
+        return feat
 
 
 def find_truncated_features(
