@@ -201,17 +201,16 @@ def find_truncated_features(
     return sorted(spanFeats, key=lambda f: f.location.start)
 
 
-# Convert SeqFeature to hashable tuple
-def seqFeature_to_tuple(seqFeature):
+def seqFeature_to_tuple(seqFeature) -> tuple:
+    """Convert a SeqFeature object to a hashable tuple.
+    Note only limited feature info is preserved."""
     qualifier_keys = tuple(sorted(seqFeature.qualifiers.keys()))
     qualifier_values = tuple(
         tuple(seqFeature.qualifiers[key]) for key in qualifier_keys
     )
     return (
         seqFeature.type,
-        seqFeature.location.start,
-        seqFeature.location.end,
-        seqFeature.location.strand,
+        str(seqFeature.location),
         qualifier_keys,
         qualifier_values,
     )
@@ -259,7 +258,7 @@ def slice_sequence_keep_truncated_features(
             raise ValueError("Negative indices not allowed")
         if start >= end:
             raise ValueError("Start must be less/equal than end")
-        if end > len(source_seqrec)+1:
+        if end > len(source_seqrec) + 1:
             raise ValueError("End position exceeds sequence length")
     sliced = source_seqrec[start:end]
     # Expand features if the cut location is inside features

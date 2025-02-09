@@ -12,7 +12,8 @@ from Bio.SeqFeature import (
 from pyBioinfo_modules.bio_sequences.bio_features import (
     truncate_feat_translation,
     find_truncated_features,
-    slice_sequence,
+    slice_sequence_keep_truncated_features,
+    seqFeature_to_tuple,
     add_seq_to_SeqRecord_as_feature,
     reverse_complement_SeqRecord_with_features,
     reverse_complement_position,
@@ -21,27 +22,27 @@ from pyBioinfo_modules.bio_sequences.bio_features import (
 
 
 class TestBioFeatures(unittest.TestCase):
-    # def test_truncate_feat_translation_left(self):
-    #     feat = SeqFeature(FeatureLocation(0, 9, strand=1), type="CDS", qualifiers={"translation":["MKTWYIK"]})
-    #     truncated = truncate_feat_translation(feat, "left")
-    #     self.assertIn("translation", truncated.qualifiers)
-    #     self.assertEqual(truncated.qualifiers["translation"][0], "TWYIK")
 
-    # def test_find_truncated_features_basic(self):
-    #     seq = SeqRecord(Seq("ATGCATGCATGC"), id="test")
-    #     feat = SeqFeature(FeatureLocation(0, 12, strand=1), type="gene")
-    #     seq.features.append(feat)
-    #     found = find_truncated_features(seq, (0, 6))
-    #     self.assertEqual(len(found), 1)
-    #     self.assertLess(found[0].location.end, 12)
-
-    # def test_slice_sequence_bounds(self):
-    #     seq = SeqRecord(Seq("ATGCATGCATGC"), id="test")
-    #     feat = SeqFeature(FeatureLocation(0, 12, strand=1), type="CDS")
-    #     seq.features.append(feat)
-    #     sliced = slice_sequence(seq, FeatureLocation(3, 9, strand=1), with_features=True)
-    #     self.assertEqual(str(sliced.seq), "CATGCA")
-    #     self.assertTrue(len(sliced.features) > 0)
+    def test_seqFeature_to_tuple(self):
+        feat1 = SeqFeature(
+            FeatureLocation(3, 5, strand=-1),
+            type="gene",
+            qualifiers={"gene": ["test_gene"]},
+        )
+        feat2 = SeqFeature(
+            FeatureLocation(3, 5, strand=1),
+            type="gene",
+            qualifiers={"gene": ["test_gene"]},
+        )
+        feat3 = SeqFeature(
+            FeatureLocation(3, 5, 1),
+            type="gene",
+            qualifiers={"gene": ["test_gene"]},
+        )
+        self.assertNotEqual(
+            seqFeature_to_tuple(feat1), seqFeature_to_tuple(feat2)
+        )
+        self.assertEqual(seqFeature_to_tuple(feat2), seqFeature_to_tuple(feat3))
 
     def test_add_seq_to_SeqRecord_as_feature(self):
         seq = SeqRecord(
