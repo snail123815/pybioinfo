@@ -278,7 +278,7 @@ def slice_sequence(
             annotations=sliced.annotations,
         )
     if rc:
-        sliced = reverse_complement_seqrecord_with_features(sliced)
+        sliced = reverse_complement_SeqRecord_with_features(sliced)
     if id:
         sliced.id = id
     else:
@@ -291,16 +291,19 @@ def slice_sequence(
 
 
 def add_seq_to_SeqRecord_as_feature(
-    seq_record: SeqRecord,
-    target_seq: Seq,
+    target_seqrec: SeqRecord,
+    to_add_seq: Seq,
     feature_type: str = "feature",
     qualifiers: dict = {},
 ) -> SeqRecord:
     """
     Add sequence to the end of the sequence record. Automatically finds the
     correct strand and location for the target sequence.
-    If a primer bind sequence is provided, it will check if there is
-    5' overhang, and avoid that.
+    If a "primer_bind" sequence is provided, it will check if there is
+    5' overhang, and avoid that in the match. Return a new SeqRecord.
+
+    "overhang" should be a string qualifier in the qualifiers dictionary, can
+    a number or sequences.
 
     Args:
         seq_record (SeqRecord): Sequence record to add the feature to.
@@ -310,49 +313,55 @@ def add_seq_to_SeqRecord_as_feature(
 
     Returns:
         SeqRecord: Sequence record with the added feature.
+                   For seq with overhanges, if int was used as "overhang"
+                   qualifier, it will be converted to a string.
     """
 
     if (
         feature_type == "primer_bind" and "overhang" in qualifiers
     ):  # 5' overhang
         try:
-            overhang = int(qualifiers["overhang"][0])
-            overhang = Seq("N" * overhang)
+            overhang_len = int(qualifiers["overhang"][0])
+            overhang_seq = to_add_seq[:overhang_len]
+            qualifiers["overhang"] = [str(overhang_seq)]
         except ValueError:
-            overhang = Seq(qualifiers["overhang"][0])
+            overhang_len = len(qualifiers["overhang"][0])
+            overhang_seq = Seq(qualifiers["overhang"][0])
             assert (
-                overhang in target_seq
+                to_add_seq.lower().startswith(str(overhang_seq.lower()))
             ), "Overhang not found in target sequence"
-        anneal_seq = target_seq[len(overhang) :]
+        match_seq = Seq(to_add_seq[overhang_len:].lower())
     else:
-        anneal_seq = target_seq
+        match_seq = Seq(to_add_seq.lower())
 
-    seq_seq = seq_record.seq
-    seq_len = len(seq_record)
-    anneal_len = len(anneal_seq)
+    seq_seq = target_seqrec.seq.lower()
+    seq_len = len(seq_seq)
+    match_len = len(match_seq)
     on_strand = 1
-    if anneal_seq.reverse_complement() in seq_seq:
-        # located on -1 strand
+
+    if match_seq in seq_seq:
+        pass
+    elif match_seq.reverse_complement() in seq_seq:
         on_strand = -1
+        match_seq=match_seq.reverse_complement()
     else:
         raise ValueError("Oligo not found in sequence")
-    match_seq = (
-        anneal_seq if on_strand == 1 else anneal_seq.reverse_complement()
-    )
-    for i in range(seq_len - anneal_len + 1):
-        if seq_seq[i : i + anneal_len] == match_seq:
-            location = FeatureLocation(i, i + anneal_len, strand=on_strand)
+
+    for i in range(seq_len - match_len + 1):
+        if seq_seq[i : i + match_len] == match_seq:
+            location = FeatureLocation(i, i + match_len, strand=on_strand)
             feature = SeqFeature(
                 location=location,
                 type=feature_type,
                 qualifiers=qualifiers,
             )
-            seq_record.features.append(feature)
-            return seq_record
-    raise ValueError("Oligo not found in sequence")
+            break
+    new_seq = target_seqrec[:]
+    new_seq.features.append(feature)
+    return new_seq
 
 
-def reverse_complement_seqrecord_with_features(record: SeqRecord) -> SeqRecord:
+def reverse_complement_SeqRecord_with_features(record: SeqRecord) -> SeqRecord:
     """Reverse complement a SeqRecord, process its features to fit in
     the new SeqRecord."""
     new_seq = record.seq.reverse_complement()

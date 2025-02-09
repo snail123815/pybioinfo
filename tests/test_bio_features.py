@@ -13,7 +13,8 @@ from pyBioinfo_modules.bio_sequences.bio_features import (
     truncate_feat_translation,
     find_truncated_features,
     slice_sequence,
-    reverse_complement_seqrecord_with_features,
+    add_seq_to_SeqRecord_as_feature,
+    reverse_complement_SeqRecord_with_features,
     reverse_complement_position,
     reverse_complement_location,
 )
@@ -42,13 +43,92 @@ class TestBioFeatures(unittest.TestCase):
     #     self.assertEqual(str(sliced.seq), "CATGCA")
     #     self.assertTrue(len(sliced.features) > 0)
 
-    # def test_reverse_complement_seqrecord_with_features(self):
-    #     seq = SeqRecord(Seq("ATGCATGC"), id="test")
-    #     feat = SeqFeature(FeatureLocation(0, 8, strand=1), type="misc")
-    #     seq.features.append(feat)
-    #     rc = reverse_complement_seqrecord_with_features(seq)
-    #     self.assertEqual(str(rc.seq), "GCATGCAT")
-    #     self.assertEqual(rc.features[0].location.strand, -1)
+    def test_add_seq_to_SeqRecord_as_feature(self):
+        seq = SeqRecord(
+            Seq("ATGCaTGCgaaatc"),
+            id="test",
+            features=[
+                SeqFeature(FeatureLocation(0, 8), type="source"),
+            ],
+        )
+        new_seq = add_seq_to_SeqRecord_as_feature(
+            seq,
+            "aTTTc",
+            "gene",
+            {"id": ["gene_id"]},
+        )
+        new_seq = add_seq_to_SeqRecord_as_feature(
+            new_seq,
+            "CCCGGcA",
+            "primer_bind",
+            {"id": ["pb1"], "overhang": ["CcCG"]},
+        )
+        new_seq = add_seq_to_SeqRecord_as_feature(
+            new_seq,
+            "CCCGttcgc",
+            "primer_bind",
+            {"id": ["rev"], "overhang": ["4"]},
+        )
+        # original seq should not be modified
+        self.assertEqual(str(seq.seq), "ATGCaTGCgaaatc")
+        self.assertEqual(str(new_seq.seq), "ATGCaTGCgaaatc")
+        self.assertEqual(seq.id, "test")
+        self.assertEqual(new_seq.id, "test")
+        self.assertEqual(len(seq.features), 1)
+
+        # new_seq should have old feature
+        self.assertEqual(new_seq.features[0].type, "source")
+        # new_seq should have new features
+        self.assertEqual(len(new_seq.features), 4)
+        gene_feat = new_seq.features[1]
+        self.assertEqual(gene_feat.type, "gene")
+        self.assertEqual(gene_feat.qualifiers["id"], ["gene_id"])
+        self.assertEqual(gene_feat.location.start, 8)
+        self.assertEqual(gene_feat.location.end, 13)
+        self.assertEqual(gene_feat.location.strand, -1)
+        pb_feat1 = new_seq.features[2]
+        self.assertEqual(pb_feat1.type, "primer_bind")
+        self.assertEqual(pb_feat1.location.start, 2)
+        self.assertEqual(pb_feat1.location.end, 5)
+        self.assertEqual(pb_feat1.location.strand, 1)
+        self.assertEqual(pb_feat1.qualifiers["id"], ["pb1"])
+        self.assertEqual(pb_feat1.qualifiers["overhang"], ["CcCG"])
+        pb_feat2 = new_seq.features[3]
+        self.assertEqual(pb_feat2.location.start, 6)
+        self.assertEqual(pb_feat2.location.end, 11)
+        self.assertEqual(pb_feat2.location.strand, -1)
+        self.assertEqual(pb_feat2.qualifiers["id"], ["rev"])
+        self.assertEqual(pb_feat2.qualifiers["overhang"], ["CCCG"])
+
+    def test_reverse_complement_seqrecord_with_features(self):
+        seq = SeqRecord(
+            Seq("ATGCATGC"),
+            id="test",
+            features=[
+                SeqFeature(FeatureLocation(0, 8), type="source"),
+                SeqFeature(
+                    FeatureLocation(2, AfterPosition(4), strand=-1),
+                    type="gene",
+                    qualifiers={"gene": ["test_gene"]},
+                ),
+            ],
+        )
+        rc = reverse_complement_SeqRecord_with_features(seq)
+        self.assertEqual(str(rc.seq), "GCATGCAT")
+        feat1, feat2 = rc.features
+
+        self.assertEqual(feat1.location.start, 0)
+        self.assertEqual(feat1.location.end, 8)
+        self.assertIs(rc.features[0].location.strand, None)
+        self.assertEqual(feat1.type, "source")
+
+        self.assertIsInstance(feat2.location.start, BeforePosition)
+        self.assertEqual(feat2.location.start, BeforePosition(4))
+        self.assertIsInstance(feat2.location.end, ExactPosition)
+        self.assertEqual(feat2.location.end, ExactPosition(6))
+        self.assertEqual(feat2.location.strand, 1)
+        self.assertEqual(feat2.type, "gene")
+        self.assertEqual(feat2.qualifiers["gene"], ["test_gene"])
 
     def test_reverse_complement_position(self):
         pos = reverse_complement_position(12, 5)
