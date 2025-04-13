@@ -1,7 +1,6 @@
 import logging
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from pyBioinfo_modules.wrappers._environment_settings import (
@@ -14,27 +13,35 @@ from pyBioinfo_modules.wrappers._environment_settings import (
 
 logger = logging.getLogger(__name__)
 
-try:
-    if BIGSCAPE_ENV is None:
-        bigscapeExe = Path(
-            [
-                p
-                for p in [shutil.which("bigscape"), shutil.which("bigscape.py")]
-                if p is not None
-            ][0]
-        ).resolve()
-    else:
-        bigscapeExe = next((BIGSCAPE_ENV / "bin").glob("bigscape*")).resolve()
-except (IndexError, StopIteration):
-    raise FileNotFoundError("bigscape executable not found.")
+
+def _get_bigscape_exe() -> Path:
+    try:
+        if BIGSCAPE_ENV is None:
+            bigscapeExe = Path(
+                [
+                    p
+                    for p in [
+                        shutil.which("bigscape"),
+                        shutil.which("bigscape.py"),
+                    ]
+                    if p is not None
+                ][0]
+            ).resolve()
+        else:
+            bigscapeExe = next(
+                (BIGSCAPE_ENV / "bin").glob("bigscape*")
+            ).resolve()
+    except (IndexError, StopIteration):
+        raise FileNotFoundError("bigscape executable not found.")
+    return bigscapeExe
 
 
 def get_bigscape_version(
-    bigscape_exe=bigscapeExe,
     condaexe=CONDAEXE,
     bigscape_env=BIGSCAPE_ENV,
     shell=SHELL,
 ) -> str:
+    bigscape_exe = _get_bigscape_exe()
     logger.info("Getting BiG-SCAPE version")
     logger.debug(f"bigscape_exe: {bigscape_exe}")
     logger.debug(f"condaexe: {condaexe}")
@@ -75,6 +82,7 @@ def runBigscape(
     verbose=False,
     shell=SHELL,
 ) -> Path:
+    bigscapeExe = _get_bigscape_exe()
     if not outputPath.is_dir():
         outputPath.mkdir(parents=True, exist_ok=False)
     cmd = f"{bigscapeExe} --mode auto -c {cpus}"
