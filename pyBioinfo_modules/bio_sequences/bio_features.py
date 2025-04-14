@@ -1,16 +1,11 @@
-from math import ceil
 from copy import deepcopy
+from math import ceil
 from typing import Literal
 
-from Bio.SeqFeature import (
-    AfterPosition,
-    BeforePosition,
-    ExactPosition,
-    FeatureLocation,
-    SeqFeature,
-)
-from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
+from Bio.SeqFeature import (AfterPosition, BeforePosition, ExactPosition,
+                            FeatureLocation, SeqFeature)
+from Bio.SeqRecord import SeqRecord
 
 
 def truncate_feat_translation(

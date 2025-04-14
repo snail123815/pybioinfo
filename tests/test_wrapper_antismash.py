@@ -1,7 +1,8 @@
+import subprocess
 import unittest
 from unittest.mock import patch
+
 from pyBioinfo_modules.wrappers.antismash import log_antismash_version
-import subprocess
 
 
 class Test_antiSmash(unittest.TestCase):
@@ -19,7 +20,7 @@ class Test_antiSmash(unittest.TestCase):
 
     @patch("pyBioinfo_modules.wrappers.antismash.subprocess.run")
     def test_log_antismash_version_command_failed(self, mock_run):
-        mock_run.side_effect = subprocess.CalledProcessError(1, 'cmd')
+        mock_run.side_effect = subprocess.CalledProcessError(1, "cmd")
         with self.assertRaises(subprocess.CalledProcessError):
             log_antismash_version(
                 condaexe="conda", antismash_env="env", shell="bash"

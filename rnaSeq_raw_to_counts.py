@@ -9,13 +9,14 @@ from rnaSeq_featureCounts import multiple_featureCounts
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler("rnaSeq_raw_to_counts.log"),
-        logging.StreamHandler()
-    ]
+        logging.StreamHandler(),
+    ],
 )
 logger = logging.getLogger(__name__)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -72,11 +73,12 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def main(args):
     args.out.mkdir(exist_ok=True, parents=True)
-    alignment_output_path = args.out/"alignment"
+    alignment_output_path = args.out / "alignment"
     # convert gbk to fasta
-    fna_file = args.out/(args.gbk.stem+".fna")
+    fna_file = args.out / (args.gbk.stem + ".fna")
     if not fna_file.exists():
         logger.info(f"Converting {args.gbk} to fasta")
         SeqIO.write(SeqIO.parse(args.gbk, "genbank"), fna_file, "fasta")
@@ -87,7 +89,7 @@ def main(args):
     logger.info(f"Is pairend: {args.isPe}")
     logger.info("Running bowtie2 alignment")
     multiple_raw_align_bowtie2(
-        raw = args.raw,
+        raw=args.raw,
         sampleNames=None,
         out=alignment_output_path,
         genomes=[fna_file],
@@ -97,7 +99,7 @@ def main(args):
     )
     logger.info("Alignment done")
 
-    counts_output_path = args.out/"counts"
+    counts_output_path = args.out / "counts"
     logger.info(f"Counts output path: {args.out/'counts'}")
     logger.info(f"Target feature: {args.targetFeature}")
     logger.info(f"Group factor: {args.groupFactor}")
@@ -118,8 +120,8 @@ def main(args):
     )
     logger.info("FeatureCounts done")
 
+
 if __name__ == "__main__":
     args = parse_args()
 
     main(args)
-

@@ -1,5 +1,5 @@
-import numpy.polynomial.polynomial as poly
 import numpy as np
+import numpy.polynomial.polynomial as poly
 import pandas as pd
 
 

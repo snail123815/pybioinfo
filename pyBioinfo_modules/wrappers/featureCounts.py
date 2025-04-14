@@ -11,10 +11,7 @@ from Bio.SeqRecord import SeqRecord
 
 from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
 from pyBioinfo_modules.wrappers._environment_settings import (
-    SHELL,
-    SHORTREADS_ENV,
-    withActivateEnvCmd,
-)
+    SHELL, SHORTREADS_ENV, withActivateEnvCmd)
 
 logger = logging.getLogger(__name__)
 

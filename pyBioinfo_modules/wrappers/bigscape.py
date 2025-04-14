@@ -5,12 +5,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from pyBioinfo_modules.wrappers._environment_settings import (
-    BIGSCAPE_ENV,
-    CONDAEXE,
-    PFAM_DB,
-    SHELL,
-    withActivateEnvCmd,
-)
+    BIGSCAPE_ENV, CONDAEXE, PFAM_DB, SHELL, withActivateEnvCmd)
 
 logger = logging.getLogger(__name__)
 

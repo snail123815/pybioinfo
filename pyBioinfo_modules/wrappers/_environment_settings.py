@@ -1,7 +1,6 @@
 # TODO: write a script change this file
-from typing import Literal
 from pathlib import Path
-
+from typing import Literal
 
 SHELL: Literal["bash", "zsh"] = "zsh"
 CONDAEXE: Literal["conda", "mamba", "micromamba"] = "micromamba"
@@ -9,12 +8,12 @@ CONDAEXE: Literal["conda", "mamba", "micromamba"] = "micromamba"
 MACS_ENV: Path | None = Path.home() / "genvs/macs3"
 MACS_PROGRAM = "macs3"
 
-ANTISMASH_ENV: Path | None = Path.home() / 'genvs/quasan'
-BUSCO_ENV: Path | None = Path.home() / 'genvs/quasan'
-PROKKA_ENV: Path | None = Path.home() / 'genvs/quasan'
-MASH_ENV: Path | None = Path.home() / 'genvs/phylophlan'
-BIGSCAPE_ENV: Path | None = Path.home() / 'genvs/bigscape'
-SHORTREADS_ENV: Path | None = Path.home() / 'genvs/shortReads'
+ANTISMASH_ENV: Path | None = Path.home() / "genvs/quasan"
+BUSCO_ENV: Path | None = Path.home() / "genvs/quasan"
+PROKKA_ENV: Path | None = Path.home() / "genvs/quasan"
+MASH_ENV: Path | None = Path.home() / "genvs/phylophlan"
+BIGSCAPE_ENV: Path | None = Path.home() / "genvs/bigscape"
+SHORTREADS_ENV: Path | None = Path.home() / "genvs/shortReads"
 
 PFAM_DB: Path | None = None
 try:

@@ -8,12 +8,10 @@ from typing import IO
 from Bio import SeqIO
 
 from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
-from pyBioinfo_modules.basic.parse_raw_read_dir import get_read_files_per_sample
+from pyBioinfo_modules.basic.parse_raw_read_dir import \
+    get_read_files_per_sample
 from pyBioinfo_modules.wrappers._environment_settings import (
-    SHELL,
-    SHORTREADS_ENV,
-    withActivateEnvCmd,
-)
+    SHELL, SHORTREADS_ENV, withActivateEnvCmd)
 
 logger = logging.getLogger(__name__)
 

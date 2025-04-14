@@ -8,13 +8,10 @@ import pandas as pd
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
-from pyBioinfo_modules.bio_sequences.bio_features import (
-    slice_sequence_keep_truncated_features,
-)
+from pyBioinfo_modules.bio_sequences.bio_features import \
+    slice_sequence_keep_truncated_features
 from pyBioinfo_modules.chipseq.find_and_filter import (
-    change_location_to_summit,
-    filter_peaks,
-)
+    change_location_to_summit, filter_peaks)
 from pyBioinfo_modules.chipseq.read_peak_file import read_peak_file
 
 

@@ -1,22 +1,14 @@
 import unittest
+
 from Bio.Seq import Seq
+from Bio.SeqFeature import (AfterPosition, BeforePosition, ExactPosition,
+                            FeatureLocation, SeqFeature)
 from Bio.SeqRecord import SeqRecord
-from Bio.SeqFeature import (
-    SeqFeature,
-    FeatureLocation,
-    BeforePosition,
-    AfterPosition,
-    ExactPosition,
-)
 
 from pyBioinfo_modules.bio_sequences.bio_features import (
-    truncate_feat_translation,
-    seqFeature_to_tuple,
-    add_seq_to_SeqRecord_as_feature,
-    reverse_complement_SeqRecord_with_features,
-    reverse_complement_position,
-    reverse_complement_location,
-)
+    add_seq_to_SeqRecord_as_feature, reverse_complement_location,
+    reverse_complement_position, reverse_complement_SeqRecord_with_features,
+    seqFeature_to_tuple, truncate_feat_translation)
 
 
 class TestBioFeatures(unittest.TestCase):
@@ -103,11 +95,11 @@ class TestBioFeatures(unittest.TestCase):
             },
         )
         truncate_feat_translation(truncated_feat, "both_sides", on_seq=seq)
-        self.assertEqual(
-            truncated_feat.qualifiers["translation"], [""]
-        )
+        self.assertEqual(truncated_feat.qualifiers["translation"], [""])
         with self.assertRaises(ValueError):
-            truncate_feat_translation(truncated_feat, "both_side", on_seq=seq, inplace=False)
+            truncate_feat_translation(
+                truncated_feat, "both_side", on_seq=seq, inplace=False
+            )
 
     def test_seqFeature_to_tuple(self):
         feat1 = SeqFeature(

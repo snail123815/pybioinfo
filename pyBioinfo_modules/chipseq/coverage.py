@@ -10,25 +10,24 @@ import pandas as pd
 from pandas import DataFrame
 
 
-class CoverageData():
+class CoverageData:
     def __init__(
         self,
         coverageTxtFile: Path | None,
-        coverageDataBz2File: Path | None = None
+        coverageDataBz2File: Path | None = None,
     ) -> None:
         self.data: DataFrame | None
         self.txtFile: Path | None = coverageTxtFile
         self.dataBz2File: Path | None = coverageDataBz2File
         if self.dataBz2File is None:
             if self.txtFile is not None:
-                logging.info(f'Reading coverage data...')
+                logging.info(f"Reading coverage data...")
                 self.data = self._readCoverageToDataframe(self.txtFile)
-                logging.info(f'Writing to bz2 pickle file for later use...')
+                logging.info(f"Writing to bz2 pickle file for later use...")
                 self.dataBz2File = self._zipCoverageData(
-                    self.data,
-                    self.txtFile.with_suffix('.pickle.bz2')
+                    self.data, self.txtFile.with_suffix(".pickle.bz2")
                 )
-                logging.info(f'Done writing.')
+                logging.info(f"Done writing.")
             else:
                 self.data = None
         else:
@@ -36,24 +35,25 @@ class CoverageData():
             self.data = self._readCoverageFromZip(self.dataBz2File)
 
     def _readCoverageFromZip(self, zipFile: Path):
-        with bz2.open(zipFile, 'rb') as dataFile:
+        with bz2.open(zipFile, "rb") as dataFile:
             return pickle.load(dataFile)
 
     def _readCoverageToDataframe(self, coverageFile: Path) -> DataFrame:
-        '''
+        """
         chr	pos	ChIP-48h	ChIP-25h	gDNA-25h	gDNA-48h
         NC_003888.3	1	2	5	7	27
         NC_003888.3	2	2	5	9	29
         NC_003888.3	3	2	5	10	34
-        NC_003888.3	4	3	5	10	34'''
-        with coverageFile.open('r') as cf:
-            columns = cf.readline().strip().split('\t')
-        columns.remove('chr')
-        return pd.read_csv(coverageFile, delimiter='\t',
-                           usecols=columns, index_col='pos')
+        NC_003888.3	4	3	5	10	34"""
+        with coverageFile.open("r") as cf:
+            columns = cf.readline().strip().split("\t")
+        columns.remove("chr")
+        return pd.read_csv(
+            coverageFile, delimiter="\t", usecols=columns, index_col="pos"
+        )
 
     def _zipCoverageData(self, coverageData: DataFrame, zipFile: Path) -> Path:
-        with bz2.open(zipFile, 'wb') as zf:
+        with bz2.open(zipFile, "wb") as zf:
             pickle.dump(coverageData, zf)
         return zipFile
 
@@ -81,6 +81,7 @@ def _read_one_macs_pileup(
             tr_perbase_pileup.append((i, value))
     return tr_perbase_pileup
 
+
 def read_macs_pileup(
     macsOutputPath: Path, tr_start: int, tr_end: int
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -90,7 +91,7 @@ def read_macs_pileup(
 
     Args:
         macsOutputPath (Path): The path to the macs output dir.
-            
+
         tr_start (int): The start position of the genomic region to plot.
         tr_end (int): The end position of the genomic region to plot.
 
@@ -157,9 +158,11 @@ def read_macs_pileup(
         treat_pileup = open(treat_pileup_path, "r")
 
     tr_control_data = np.array(
-         _read_one_macs_pileup(control_lambda, tr_start, tr_end)
+        _read_one_macs_pileup(control_lambda, tr_start, tr_end)
     )
-    tr_treat_data = np.array( _read_one_macs_pileup(treat_pileup, tr_start, tr_end))
+    tr_treat_data = np.array(
+        _read_one_macs_pileup(treat_pileup, tr_start, tr_end)
+    )
     control_lambda.close()
     treat_pileup.close()
 

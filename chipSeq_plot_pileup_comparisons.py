@@ -293,7 +293,9 @@ def __main__():
             length = peak["length"]
             # Expand both side by length of "summit to edge plus peak length"
             # or 1500 bp if that value < 1500
-            flanking = max(1500, location - start-length, end-location -length)
+            flanking = max(
+                1500, location - start - length, end - location - length
+            )
             tr_start, tr_end = get_target_region(
                 location,
                 None,
@@ -326,7 +328,6 @@ def __main__():
             ax.set_title(title)
             fig.savefig(savefig, dpi=100)
             plt.close(fig)
-
 
 
 if __name__ == "__main__":
