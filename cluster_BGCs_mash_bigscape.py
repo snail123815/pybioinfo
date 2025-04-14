@@ -3,14 +3,11 @@ import os
 from multiprocessing import Pool
 from tqdm import tqdm
 from pathlib import Path
-from pyBioinfo_modules.wrappers.antismash \
-    import clusterGbkGlobTxt, parseClusterGbk
-from pyBioinfo_modules.wrappers.mash \
-    import mashSketchFiles, mashDistance
+from pyBioinfo_modules.wrappers.antismash  import clusterGbkGlobTxt, parseClusterGbk
+from pyBioinfo_modules.wrappers.mash import mashSketchFiles, mashDistance
 from pyBioinfo_modules.mash_cluster_bgc_bigscape.process_mash_result\
     import calculate_medoid
-from pyBioinfo_modules.wrappers.bigscape \
-    import runBigscape
+from pyBioinfo_modules.wrappers.bigscape import BigscapeWrapper
 from pyBioinfo_modules.basic.path_file import globFilesSafely
 from tempfile import TemporaryDirectory
 import pickle
@@ -150,7 +147,9 @@ def main():
             f for f in representativeGbksDir.iterdir() if f.is_file()
         ])
 
-        runBigscape(
+        BS_wrapper = BigscapeWrapper()
+
+        BS_wrapper.run_bigscape(
             representativeGbksDir, bigscapeOutput,
             cpus=args.cpus,
             cutoffs=[0.2, ],
