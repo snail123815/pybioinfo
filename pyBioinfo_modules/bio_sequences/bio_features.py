@@ -1,10 +1,16 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from math import ceil
 from typing import Literal
 
 from Bio.Seq import Seq
-from Bio.SeqFeature import (AfterPosition, BeforePosition, ExactPosition,
-                            FeatureLocation, SeqFeature)
+from Bio.SeqFeature import (
+    AfterPosition,
+    BeforePosition,
+    ExactPosition,
+    FeatureLocation,
+    SeqFeature,
+)
 from Bio.SeqRecord import SeqRecord
 
 
@@ -287,6 +293,39 @@ def slice_sequence_keep_truncated_features(
         descrip = [sliced.id]
     sliced.description = "-".join(descrip).replace(" ", "_")
     return sliced
+
+
+def slice_seq_concurrent(
+    source_seqs: list[SeqRecord], peak_info: dict[str, list[str, list[int]]]
+) -> list[SeqRecord]:
+    """
+    peak_info data structure:
+    peak_info -> {peak_id: [chr, [start, end]]}
+    """
+    extracted_seqs = []
+    sources = {}
+    for seq in source_seqs:
+        sources[seq.id] = seq
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = []
+        for peak, info in peak_info.items():
+            chr = info[0]
+            loc = info[1]
+            if chr not in sources:
+                raise Exception(f"Chromosome {chr} not found in genome file")
+            source_seq = sources[chr]
+            futures.append(
+                executor.submit(
+                    slice_sequence_keep_truncated_features,
+                    source_seq,
+                    loc,
+                    peak,
+                )
+            )
+        for future in as_completed(futures):
+            sliceSeq = future.result()
+            extracted_seqs.append(sliceSeq)
+    return extracted_seqs
 
 
 def add_seq_to_SeqRecord_as_feature(
