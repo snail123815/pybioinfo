@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
-from pyBioinfo_modules.wrappers.macs import parse_comparison_file, macs_predictd, macs_callPeak
+
+from pyBioinfo_modules.wrappers.macs import (macs_callPeak, macs_predictd,
+                                             parse_comparison_file)
 
 parser = argparse.ArgumentParser(description="ChipSeq MACS3 Peak Calling")
 
@@ -46,7 +48,7 @@ arg_group1.add_argument(
         "use this value as fragment size to extend each read "
         "towards 3' end, then pile them up."
         "Exclusive with --predictd"
-    )
+    ),
 )
 args = parser.parse_args()
 
@@ -62,7 +64,7 @@ isPe = args.pairend
 extsize = args.extsize
 
 experimentDict = parse_comparison_file(compFile, bamPath)
-if extsize==0:
+if extsize == 0:
     if doPredictd and not isPe:
         fragsize = macs_predictd(experimentDict, outputDir, gsize)
     else:

@@ -15,15 +15,10 @@ from Bio.SeqRecord import SeqRecord
 from tqdm import tqdm
 
 from pyBioinfo_modules.basic.decompress import decompFileIfCompressed
-from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import (
-    FNA_EXTENSIONS,
-)
+from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import \
+    FNA_EXTENSIONS
 from pyBioinfo_modules.wrappers._environment_settings import (
-    ANTISMASH_ENV,
-    CONDAEXE,
-    SHELL,
-    withActivateEnvCmd,
-)
+    ANTISMASH_ENV, CONDAEXE, SHELL, withActivateEnvCmd)
 
 logger = logging.getLogger(__name__)
 

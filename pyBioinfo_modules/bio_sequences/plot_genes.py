@@ -226,13 +226,13 @@ def plot_genes(
                 if i % interval != 0:
                     gene_name.set_visible(False)
             for i, gene_name in enumerate(
-                reversed(gene_names[: center_gene_nr])
+                reversed(gene_names[:center_gene_nr])
             ):
                 if (interval + i + 1) % interval != 0:
                     gene_name.set_visible(False)
         else:
             for i, gene_name in enumerate(gene_names):
-                if (interval//2 + i + 1) % interval != 0:
+                if (interval // 2 + i + 1) % interval != 0:
                     gene_name.set_visible(False)
 
     return (

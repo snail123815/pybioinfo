@@ -11,8 +11,8 @@ import argparse
 import os
 import subprocess
 from tempfile import NamedTemporaryFile
-from Bio.Blast import NCBIXML
 
+from Bio.Blast import NCBIXML
 
 Parser = argparse.ArgumentParser(
     description=(

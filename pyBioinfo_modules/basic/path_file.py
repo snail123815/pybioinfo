@@ -1,22 +1,25 @@
-from pathlib import Path
 import pickle
 from glob import glob
+from pathlib import Path
+
 from tqdm import tqdm
 
 
 def findStartLine(csvFile: Path) -> int:
-    with csvFile.open('r') as file:
+    with csvFile.open("r") as file:
         for i, line in enumerate(file):
-            if not line.strip()[0] == '#':
-                if line != '':
+            if not line.strip()[0] == "#":
+                if line != "":
                     return i
         return 0
 
 
 def globFilesSafely(
-    sourceDir: Path, globPattern: str,
+    sourceDir: Path,
+    globPattern: str,
     resultPickle: Path | None = None,
-    reload: bool = False, showProgress: bool = False
+    reload: bool = False,
+    showProgress: bool = False,
 ) -> list[Path]:
     """Make sure glob files will follow symlinks
     In pathlib.Path, the glob() function do not follow symlink:
@@ -30,7 +33,7 @@ def globFilesSafely(
     ```
     """
     if resultPickle is not None and resultPickle.is_file() and not reload:
-        with resultPickle.open('rb') as fh:
+        with resultPickle.open("rb") as fh:
             return pickle.load(fh)
     else:
         if showProgress:
@@ -38,17 +41,22 @@ def globFilesSafely(
             # just like glob(str(sourceDir/globPattern)), but return list[Path]
             for d in tqdm(
                 [d for d in sourceDir.iterdir() if d.is_dir()],
-                desc=(f'Gathering "{globPattern}" files from {sourceDir.name}')
+                desc=(f'Gathering "{globPattern}" files from {sourceDir.name}'),
             ):
-                files.extend(Path(f) for f in
-                             glob(str(d / ('**/' + globPattern)),
-                                  recursive=True))
+                files.extend(
+                    Path(f)
+                    for f in glob(
+                        str(d / ("**/" + globPattern)), recursive=True
+                    )
+                )
         else:
             files = [
-                Path(f) for f in
-                glob(str(sourceDir / ("**/" + globPattern)), recursive=True)
+                Path(f)
+                for f in glob(
+                    str(sourceDir / ("**/" + globPattern)), recursive=True
+                )
             ]
         if resultPickle is not None:
-            with resultPickle.open('wb') as fh:
+            with resultPickle.open("wb") as fh:
                 pickle.dump(files, fh)
     return files

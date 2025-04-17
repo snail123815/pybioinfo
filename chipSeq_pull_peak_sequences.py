@@ -1,47 +1,17 @@
 import argparse
-import concurrent.futures
 from argparse import ArgumentError
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
 
-from pyBioinfo_modules.bio_sequences.bio_features import slice_sequence
+from pyBioinfo_modules.bio_sequences.bio_features import slice_seq_concurrent
 from pyBioinfo_modules.chipseq.find_and_filter import (
     change_location_to_summit,
     filter_peaks,
 )
 from pyBioinfo_modules.chipseq.read_peak_file import read_peak_file
-
-
-def slice_seq_concurrent(
-    source_seqs: list[SeqRecord], peak_info: dict[str, list[str, list[int]]]
-) -> list[SeqRecord]:
-    """
-    peak_info data structure:
-    peak_info -> {peak_id: [chr, [start, end]]}
-    """
-    extracted_seqs = []
-    sources = {}
-    for seq in source_seqs:
-        sources[seq.id] = seq
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = []
-        for peak, info in peak_info.items():
-            chr = info[0]
-            loc = info[1]
-            if chr not in sources:
-                raise Exception(f"Chromosome {chr} not found in genome file")
-            source_seq = sources[chr]
-            futures.append(
-                executor.submit(slice_sequence, source_seq, loc, peak)
-            )
-        for future in concurrent.futures.as_completed(futures):
-            sliceSeq = future.result()
-            extracted_seqs.append(sliceSeq)
-    return extracted_seqs
 
 
 def get_title(title, filter_groups, around_summit):

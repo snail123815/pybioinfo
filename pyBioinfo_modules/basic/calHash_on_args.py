@@ -17,8 +17,8 @@ from hashlib import md5
 
 # Optional imports
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.cross_decomposition import PLSRegression as PLS
+from sklearn.decomposition import PCA
 
 
 def calHash(*args) -> str:
@@ -27,6 +27,7 @@ def calHash(*args) -> str:
     resulting the same hash across platform.
     Should be safe with nested dict but no guarantee
     """
+
     def orderDict(di):
         try:
             d = di.copy()
@@ -48,20 +49,17 @@ def calHash(*args) -> str:
         od = orderDict(di)
         ha = md5(
             json.dumps(
-                od,
-                sort_keys=True,
-                ensure_ascii=True,
-                default=str
+                od, sort_keys=True, ensure_ascii=True, default=str
             ).encode()
         ).digest()
         return ha
 
-    haRaw = ''.encode()
+    haRaw = "".encode()
     for arg in args:
         if isinstance(arg, str):
             if os.path.isfile(arg):
                 # Do not think about making a dir recognisable.
-                with open(arg, 'rb') as f:
+                with open(arg, "rb") as f:
                     haRaw += md5(f.read()).digest()
             else:
                 haRaw += arg.encode()
@@ -69,7 +67,9 @@ def calHash(*args) -> str:
             haRaw += str(sorted(list())).encode()
         elif isinstance(arg, dict):
             haRaw += hashDict(arg)
-        elif isinstance(arg, pd.core.frame.DataFrame) or isinstance(arg, pd.core.series.Series):
+        elif isinstance(arg, pd.core.frame.DataFrame) or isinstance(
+            arg, pd.core.series.Series
+        ):
             haRaw += md5(arg.to_json().encode()).digest()
         elif isinstance(arg, PCA):
             haRaw += arg.components_.tobytes()
@@ -84,32 +84,34 @@ def calHash(*args) -> str:
 
 # TEST
 if __name__ == "__main__":
-    import numpy as np
     import warnings
+
+    import numpy as np
+
     warnings.filterwarnings("ignore")
-    tmpfile = 'abc.tmp'
-    with open(tmpfile, 'wb') as tf:
-        tf.write('iviviv'.encode())
+    tmpfile = "abc.tmp"
+    with open(tmpfile, "wb") as tf:
+        tf.write("iviviv".encode())
     a = pd.DataFrame(dict(a=[1, 2], b=[3, 4]), index=[1, 2])
-    b = dict(x='iv', y='83', z=dict(i=0, u=5, k=dict(kj='kj', hs='qf')))
-    c = 'avb'
+    b = dict(x="iv", y="83", z=dict(i=0, u=5, k=dict(kj="kj", hs="qf")))
+    c = "avb"
     d = 1
     e = PLS()
     e.fit(np.linspace(1, 100, 50).reshape(-1, 2).T, [[1], [1.5]])
     f = PCA()
     f.fit(np.linspace(4, 5, 100).reshape(-1, 5))
     ha = calHash(a, b, c, d, e, f, tmpfile)
-    correctHa = '89c28a'
+    correctHa = "89c28a"
     if ha == correctHa:
         print("Test OK")
     else:
         print(f"Test fail, previous ha is {correctHa}, current ha is {ha}")
-        print(f'a now {calHash(a)} - previous 177438')
-        print(f'b now {calHash(b)} - previous 9536de')
-        print(f'c now {calHash(c)} - previous 539183')
-        print(f'd now {calHash(d)} - previous c4ca42')
-        print(f'e now {calHash(e)} - previous 8889c7')
-        print(f'f now {calHash(f)} - previous 5473de')
-        print(f'tmpfile now {calHash(tmpfile)} - previous')
+        print(f"a now {calHash(a)} - previous 177438")
+        print(f"b now {calHash(b)} - previous 9536de")
+        print(f"c now {calHash(c)} - previous 539183")
+        print(f"d now {calHash(d)} - previous c4ca42")
+        print(f"e now {calHash(e)} - previous 8889c7")
+        print(f"f now {calHash(f)} - previous 5473de")
+        print(f"tmpfile now {calHash(tmpfile)} - previous")
 
     os.remove(tmpfile)

@@ -1,7 +1,8 @@
-from pathlib import Path
-from tqdm import tqdm
 import sys
+from pathlib import Path
+
 import numpy as np
+from tqdm import tqdm
 
 
 class mashBGC_ClusteringResult:
@@ -16,14 +17,16 @@ class mashBGC_ClusteringResult:
 
     """
 
-    def __init__(self, ) -> None:
+    def __init__(
+        self,
+    ) -> None:
         pass
 
 
 def calculate_medoid(
     inputDistanceTablePath: Path,  # output file (return) of mashDistance()
     cutOff: float,  # default 0.8
-    med: dict[str, list[str]] = {}  # looks like you can pass previous result?
+    med: dict[str, list[str]] = {},  # looks like you can pass previous result?
 ) -> tuple[dict[str, list[str]], dict[str, list[list[float]]]]:
     """
     re-write of function in BiGMAP https://github.com/medema-group/BiG-MAP
@@ -56,37 +59,38 @@ def calculate_medoid(
                     row.append(0)
                 family_distance_matrices[familyName].append([0] * len(idList))
             return idList.index(id)
-        index1 = add_new_gene(
-            familyName,
-            family_members[familyName],
-            refId)
-        index2 = add_new_gene(
-            familyName,
-            family_members[familyName],
-            queryId)
+
+        index1 = add_new_gene(familyName, family_members[familyName], refId)
+        index2 = add_new_gene(familyName, family_members[familyName], queryId)
         family_distance_matrices[familyName][index1][index2] = distance
         family_distance_matrices[familyName][index2][index1] = distance
         return ()
-    with inputDistanceTablePath.open('r') as input:
-        pbar = tqdm(total=inputDistanceTablePath.stat().st_size,
-                    bar_format=r"{l_bar}{bar}| {n:,.0f}/{total:,.0f} {unit} " +
-                    r"[{elapsed}<{remaining}, {rate_fmt}{postfix}]",
-                    unit_scale=1 / 1048576, unit='MB',
-                    desc="Generating families from distance file")
+
+    with inputDistanceTablePath.open("r") as input:
+        pbar = tqdm(
+            total=inputDistanceTablePath.stat().st_size,
+            bar_format=r"{l_bar}{bar}| {n:,.0f}/{total:,.0f} {unit} "
+            + r"[{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+            unit_scale=1 / 1048576,
+            unit="MB",
+            desc="Generating families from distance file",
+        )
         readSize = 0
         for idx, line in enumerate(input):
             readSize += sys.getsizeof(line) - 50  # length of '\n'
             if idx % 10000 == 0:
                 pbar.update(readSize)
                 readSize = 0
-            if line.startswith('#') or line.strip() == "":
+            if line.startswith("#") or line.strip() == "":
                 continue
 
             # Split into tab-separated elements
-            refId, queryId, distanceStr, pValueStr, nHashesStr \
-                = line.strip().split('\t')
-            sharedNhashes, totalNhashes = (int(n) for n in
-                                           nHashesStr.split("/"))
+            refId, queryId, distanceStr, pValueStr, nHashesStr = (
+                line.strip().split("\t")
+            )
+            sharedNhashes, totalNhashes = (
+                int(n) for n in nHashesStr.split("/")
+            )
             shareRatio = sharedNhashes / totalNhashes
             distance = float(distanceStr)
             pValue = float(pValueStr)
@@ -115,10 +119,7 @@ def calculate_medoid(
                     if family[refId] == familyName:
                         # refId is in our family, so record the distance
                         add_to_distance_matrix(
-                            familyName,
-                            queryId,
-                            refId,
-                            distance
+                            familyName, queryId, refId, distance
                         )
                     else:
                         # gene is above cut off or doesn't belong to the family
@@ -132,20 +133,12 @@ def calculate_medoid(
                     # insert refId into that family as only member, with a
                     # distance of 0
                     add_to_distance_matrix(
-                        gene1_family_name,
-                        refId,
-                        refId,
-                        distance
+                        gene1_family_name, refId, refId, distance
                     )
             else:
                 # There is some overlap, and we want refId also in this family
                 family[refId] = familyName
-                add_to_distance_matrix(
-                    familyName,
-                    queryId,
-                    refId,
-                    distance
-                )
+                add_to_distance_matrix(familyName, queryId, refId, distance)
 
         pbar.update(readSize)
         pbar.close()

@@ -1,7 +1,6 @@
+import argparse
 import os
 import subprocess
-import argparse
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--pathSam", help="path to sam files")
@@ -32,11 +31,14 @@ for f in fileList:
     cmd = [
         "samtools",
         "sort",
-        "-m", "20G",
-        "-o", bam,
+        "-m",
+        "20G",
+        "-o",
+        bam,
         "-O",
         "bam",
-        "-@", ncpu,
+        "-@",
+        ncpu,
         f,
     ]
     print("Running...\n", " ".join(cmd))

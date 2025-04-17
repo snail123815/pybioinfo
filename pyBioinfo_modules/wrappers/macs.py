@@ -1,15 +1,11 @@
-import os
 import logging
+import os
 import shutil
 import subprocess
 from pathlib import Path
+
 from pyBioinfo_modules.wrappers._environment_settings import (
-    MACS_PROGRAM,
-    MACS_ENV,
-    SHELL,
-    CONDAEXE,
-    withActivateEnvCmd,
-)
+    CONDAEXE, MACS_ENV, MACS_PROGRAM, SHELL, withActivateEnvCmd)
 
 logger = logging.getLogger(__name__)
 

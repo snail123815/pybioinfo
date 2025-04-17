@@ -1,5 +1,5 @@
-from functools import reduce
 import time
+from functools import reduce
 
 
 def makeList(ele1, ele2):
@@ -18,10 +18,10 @@ def flattenList(lst):
 
 
 def getTimeStr():
-    return time.strftime('%z, %a, %d %b %Y, %H:%M:%S', time.localtime())
+    return time.strftime("%z, %a, %d %b %Y, %H:%M:%S", time.localtime())
 
 
 def timeDiffStr(a):
     d = abs(time.time() - a)
     h = int(d // 3600)
-    return str(h).zfill(2) + time.strftime(':%M:%S', time.gmtime(d))
+    return str(h).zfill(2) + time.strftime(":%M:%S", time.gmtime(d))
