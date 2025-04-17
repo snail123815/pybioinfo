@@ -2,8 +2,8 @@
 
 A Python toolkit for bioinformatics analysis workflows.
 
-[![Python Tests](https://github.com/yourusername/pybioinfo/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/pybioinfo/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/yourusername/pybioinfo/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/pybioinfo)
+[![Python Tests](https://github.com/snail123815/pybioinfo/actions/workflows/Python-tests.yml/badge.svg)](https://github.com/snail123815/pybioinfo/actions/workflows/Python-tests.yml)
+[![codecov](https://codecov.io/gh/snail123815/pybioinfo/branch/main/graph/badge.svg)](https://codecov.io/gh/snail123815/pybioinfo)
 
 ## Features
 
@@ -22,7 +22,7 @@ A Python toolkit for bioinformatics analysis workflows.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/pybioinfo.git
+git clone https://github.com/snail123815/pybioinfo.git
 cd pybioinfo
 
 # Install dependencies
