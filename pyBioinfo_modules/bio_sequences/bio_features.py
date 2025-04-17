@@ -1,6 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
-from math import ceil
 from typing import Literal
 
 from Bio.Seq import Seq
@@ -104,17 +103,23 @@ def find_truncated_features(
     location: tuple[int, int] | FeatureLocation,
     expand: int = 20000,
     include_inner_feats: bool = False,
-):
+) -> list[SeqFeature]:
     """Get features from a sequence region with proper handling of truncated
     features. Scanning the region with optional expansion, for features that
     might be truncated by splicing.
-    0-based indexing is used for start and end positions.
+    Used to append features back to the sequence after slicing.
+    Can find features that span the location bundaries, or are completely
+    within the region.
 
     Args:
         source_seq (SeqRecord): Source sequence record.
-        location (tuple[int, int] | FeatureLocation): Start and end positions in genome coordinates (0-based, inclusive start, exclusive end) or a FeatureLocation object.
-        expand (int, optional): Number of bases to expand the region by. Defaults to 20000 to include larger features produced by antismash.
-        include_inner_feats (bool, optional): Whether to include features that are completely within the region. Defaults to False.
+        location (tuple[int, int] | FeatureLocation): Start and end positions
+            in genome coordinates (0-based, inclusive start, exclusive end) or
+            a FeatureLocation object.
+        expand (int, optional): Number of bases to expand the region by.
+            Defaults to 20000 to include larger features produced by antismash.
+        include_inner_feats (bool, optional): Whether to include features that
+            are completely within the region. Defaults to False.
 
     Returns:
         list[SeqFeature]: List of features in the region with proper truncation handling

@@ -35,9 +35,9 @@ dependencies:
 TODO: add argument parse
 
 Change parameters:
-  - `jsonFile`, `alignmentFasta` for input files
-  - `tStart`, `tEnd` for start and end position of your target region on query protein sequence. One 'domain' of a 'hit' must cover full region.
-  - [not implemented]`eThresh` for threshold of the full 'hit', a valid 'hit' must have a 'evalue' lower than this value.
+- `jsonFile`, `alignmentFasta` for input files
+- `tStart`, `tEnd` for start and end position of your target region on query protein sequence. One 'domain' of a 'hit' must cover full region.
+- [not implemented]`eThresh` for threshold of the full 'hit', a valid 'hit' must have a 'evalue' lower than this value.
 
 ### 2. FastTree
 
@@ -48,8 +48,8 @@ TO BE INCORPORATED
 TODO: add argument parse
 
 Change parameters:
-  - `jsonFile` for input phmmer result file
-  - `treeFile` for input tree
-  - `relationsFile` for output table of 'proteinID' => 'species name'
+- `jsonFile` for input phmmer result file
+- `treeFile` for input tree
+- `relationsFile` for output table of 'proteinID' => 'species name'
 
 Result tree will be added a '.species' before the extension.
