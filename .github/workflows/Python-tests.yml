@@ -3,6 +3,8 @@ name: Python Tests
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -47,7 +49,7 @@ jobs:
         slug: snail123815/pybioinfo
 
     - name: Update README coverage badges
-      if: matrix.python-version == '3.13'
+      if: matrix.python-version == '3.13' && github.event_name == 'pull_request'
       run: |
         # Get coverage for each module
         bio_sequences_cov=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(int(float(root.find('.//package[@name=\"pyBioinfo_modules.bio_sequences\"]').get('line-rate'))*100))")
