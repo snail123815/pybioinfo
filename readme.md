@@ -49,9 +49,9 @@ python run_antismash.py path/to/genomes/*.gbk --completeness 2 --threads 4
 
 | Module | Coverage |
 |--------|----------|
-| bio_sequences | ![Coverage](https://img.shields.io/badge/coverage-XX%25-brightgreen) |
-| wrappers | ![Coverage](https://img.shields.io/badge/coverage-XX%25-brightgreen) |
-| basic | ![Coverage](https://img.shields.io/badge/coverage-XX%25-brightgreen) |
+| bio_sequences | ![Coverage](https://img.shields.io/badge/coverage-69%25-brightgreen) |
+| wrappers | ![Coverage](https://img.shields.io/badge/coverage-39%25-brightgreen) |
+| basic | ![Coverage](https://img.shields.io/badge/coverage-16%25-brightgreen) |
 
 ## Contributing
 
