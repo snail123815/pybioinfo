@@ -44,13 +44,11 @@ jobs:
         # Get coverage for each module
         bio_sequences_cov=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(int(float(root.find('.//package[@name=\"pyBioinfo_modules.bio_sequences\"]').get('line-rate'))*100))")
         wrappers_cov=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(int(float(root.find('.//package[@name=\"pyBioinfo_modules.wrappers\"]').get('line-rate'))*100))")
-        chipseq_cov=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(int(float(root.find('.//package[@name=\"pyBioinfo_modules.chipseq\"]').get('line-rate'))*100))")
         basic_cov=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(int(float(root.find('.//package[@name=\"pyBioinfo_modules.basic\"]').get('line-rate'))*100))")
         
         # Update badges in README
         sed -i "s/bio_sequences.*brightgreen)/bio_sequences | ![Coverage](https:\/\/img.shields.io\/badge\/coverage-${bio_sequences_cov}%25-brightgreen)/" readme.md
         sed -i "s/wrappers.*brightgreen)/wrappers | ![Coverage](https:\/\/img.shields.io\/badge\/coverage-${wrappers_cov}%25-brightgreen)/" readme.md
-        sed -i "s/chipseq.*brightgreen)/chipseq | ![Coverage](https:\/\/img.shields.io\/badge\/coverage-${chipseq_cov}%25-brightgreen)/" readme.md
         sed -i "s/basic.*brightgreen)/basic | ![Coverage](https:\/\/img.shields.io\/badge\/coverage-${basic_cov}%25-brightgreen)/" readme.md
         
         # Commit changes if running on main branch
