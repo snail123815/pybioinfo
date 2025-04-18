@@ -1,24 +1,24 @@
 import gzip
+import logging
 import lzma
 import re
 import subprocess
-from concurrent.futures import ProcessPoolExecutor
 from collections import OrderedDict, namedtuple
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
-from tqdm import tqdm
 import pandas as pd
-
+from tqdm import tqdm
 from wrappers.hmmer_config import (
+    GATHER_T_COV,
+    GATHER_T_DOME,
+    GATHER_T_E,
+    LEN_DIFF,
     NCPU,
     T_DOME,
     T_E,
     T_INCDOME,
     T_INCE,
-    GATHER_T_COV,
-    GATHER_T_E,
-    GATHER_T_DOME,
-    LEN_DIFF
 )
 
 from pyBioinfo_modules.wrappers._environment_settings import (
@@ -28,21 +28,94 @@ from pyBioinfo_modules.wrappers._environment_settings import (
     withActivateEnvCmd,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def run_hmmsearch():
     return
 
 
-def run_jackhmmer_full_proteome(
-    ref_proteome_path, db_f, domtblout_path, ref_next_loc=0
-):
-    # ref_nex_loc is used if the program died in the middle.
-    # Use `get_location.py`
-    # https://github.com/snail123815/proj-coll-Emtinan-aminoacylation-phenotype-gene-correlation/blob/main/step_1.1_get_location.py
-    # to get where the program lefted out.
+def _find_break_point(target: str, ref_proteome_p: Path):
+    """
+    Find the location of the target in the reference proteome file
+    and the next gene location.
+    This is used to resume the search if it was interrupted.
+    You need to find what is the last sequence that was processed
+    and start from there.
 
-    # "protein.faa.gz"
-    with gzip.open(ref_proteome_path, "rt") as ref:
+    target: Fasta header of the target protein, e.g. ">sp|P0A7D3|ARGH_ECOLI"
+    ref_proteome_p: Path to the reference proteome file
+        A fasta file containing the sequences to search against.
+        This file is usually large, so it is compressed with gzip.
+        The file is seekable, so we can use the tell() method to find
+        the location of the target protein in the file.
+
+    https://github.com/snail123815/proj-coll-Emtinan-aminoacylation-phenotype-gene-correlation/blob/main/step_1.1_get_location.py
+    """
+
+    # Check the first appearance
+    target_seek_loc = 0
+    with gzip.open(ref_proteome_p, "rt") as rpp:
+        assert rpp.seekable()
+
+        l = rpp.readline()
+        while l:
+            if l.startswith(target):
+                target_seek_loc = rpp.tell()
+                break
+            l = rpp.readline()
+
+    # Find the next id location
+    next_id_found = False
+    with gzip.open(ref_proteome_p, "rt") as rpp:
+        rpp.seek(target_seek_loc)
+        l = rpp.readline()
+        next_seek_loc = target_seek_loc
+        while l:
+            next_seek_loc = rpp.tell()
+            if l.startswith(">"):
+                next_id_found = True
+                break
+            l = rpp.readline()
+
+    if not next_id_found:
+        raise ValueError(
+            f"No next id found in the file. Maybe {target} is "
+            "already the last one."
+        )
+
+    # Check the result
+    with gzip.open(ref_proteome_p, "rt") as rpp:
+        rpp.seek(next_seek_loc)
+        for i in range(5):
+            print(rpp.readline())
+
+    return next_seek_loc
+
+
+def run_jackhmmer_full_proteome(
+    query_proteome_path, db_f, domtblout_path, ref_next_loc=0
+):
+    """
+    Run jackhmmer on the full proteome
+    ref_proteome_path: Path to the reference proteome file
+        A gzipped fasta file containing the sequences to search. Query.
+    db_f: Path to the database file
+        A gzipped fasta file containing the sequences to search against, make
+        sure there is no duplicated headers in this file
+    domtblout_path: Path to the output file
+        Format is --domtblout
+    ref_next_loc: int
+        The location to start from in the reference proteome file, will be
+        "seeked" to this location to start. This is used to resume the search
+        if it was interrupted.
+
+        Example: _find_break_point(">sp|P0A7D3|ARGH_ECOLI", "protein.faa.gz")
+    TODO this needs to be prevented in the future, split input into pieces then
+    perform the search.
+    """
+
+    with gzip.open(query_proteome_path, "rt") as ref:
         ref.seek(ref_next_loc)
         jackhmmer_run = subprocess.run(
             (
@@ -99,7 +172,9 @@ def cal_cov(line: dict, dom_cov_regions: list[int]):
 def remove_duplicates(file_p: Path) -> Path:
     no_dup_path = file_p.parent / f"{file_p.stem}_nodup{file_p.suffix}"
     print(f"Removing duplicates from file {file_p} -> {no_dup_path}")
-    ddup = subprocess.run(f"awk '!seen[$0]++' {file_p} > {no_dup_path}", shell=True)
+    ddup = subprocess.run(
+        f"awk '!seen[$0]++' {file_p} > {no_dup_path}", shell=True
+    )
     ddup.check_returncode()
     return no_dup_path
 
