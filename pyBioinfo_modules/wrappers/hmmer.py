@@ -9,17 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
-from wrappers.hmmer_config import (
-    GATHER_T_COV,
-    GATHER_T_DOME,
-    GATHER_T_E,
-    LEN_DIFF,
-    NCPU,
-    T_DOME,
-    T_E,
-    T_INCDOME,
-    T_INCE,
-)
+from wrappers.hmmer_config import hhpc
 
 from pyBioinfo_modules.wrappers._environment_settings import (
     CONDAEXE,
@@ -94,7 +84,7 @@ def _find_break_point(target: str, ref_proteome_p: Path):
 
 
 def run_jackhmmer_full_proteome(
-    query_proteome_path, db_f, domtblout_path, ref_next_loc=0
+    query_proteome_path, db_f, domtblout_path, ref_next_loc=0, cpus=8
 ):
     """
     Run jackhmmer on the full proteome
@@ -119,9 +109,12 @@ def run_jackhmmer_full_proteome(
         ref.seek(ref_next_loc)
         jackhmmer_run = subprocess.run(
             (
-                f"jackhmmer -E {str(T_E)} --incE {str(T_INCE)} "
-                f"--domE {str(T_DOME)}  --incdomE {str(T_INCDOME)} "
-                f"--cpu {str(NCPU)} --domtblout {domtblout_path} "
+                f"jackhmmer -E {str(hhpc.T_E)} "
+                f"--incE {str(hhpc.T_INCE)} "
+                f"--domE {str(hhpc.T_DOME)} "
+                f"--incdomE {str(hhpc.T_INCDOME)} "
+                f"--cpu {str(cpus)} "
+                f"--domtblout {domtblout_path} "
                 f"- {db_f} 1>/dev/null"
             ),
             input=ref.read().encode(),
@@ -150,14 +143,14 @@ def cal_cov(line: dict, dom_cov_regions: list[int]):
     is_end_dom = False
     if line["dom_total"] == 1:  # Single domain
         is_end_dom = True
-        if line["dom_i_E"] <= GATHER_T_DOME:
+        if line["dom_i_E"] <= hhpc.GATHER_T_DOME:
             cov_len = line["ali_to"] - line["ali_from"] + 1
             dom_covq = cov_len / line["qlen"]
             dom_covt = cov_len / line["tlen"]
     else:  # multi domains
         # if line['dom_n'] == 1:  # first multi domain
         #     dom_cov_regions = []
-        if line["dom_i_E"] <= GATHER_T_DOME:
+        if line["dom_i_E"] <= hhpc.GATHER_T_DOME:
             dom_cov_regions.extend(
                 list(range(line["ali_from"], line["ali_to"] + 1))
             )
@@ -183,8 +176,8 @@ def read_domtbl(domtbl_p: Path) -> pd.DataFrame:
     def parse_one_line(
         l,
         domtbl_dict,
-        t_e=GATHER_T_E,
-        len_diff=LEN_DIFF,
+        t_e=hhpc.GATHER_T_E,
+        len_diff=hhpc.LEN_DIFF,
         splitter=re.compile(r" +"),
     ):
         line_list = splitter.split(l.strip())
@@ -264,7 +257,7 @@ def process_single_query(domtbl_q: list[OrderedDict]):
             row, dom_cov_regions
         )
         if is_end_dom:
-            if dom_covq < GATHER_T_COV or dom_covt < GATHER_T_COV:
+            if dom_covq < hhpc.GATHER_T_COV or dom_covt < hhpc.GATHER_T_COV:
                 continue
             dom_cov_regions = []
         else:
@@ -284,10 +277,10 @@ def process_single_query(domtbl_q: list[OrderedDict]):
     return pd.DataFrame(match_dict)
 
 
-def parse_dom_table_mt(domtbl_df):
+def parse_dom_table_mt(domtbl_df, cpus=8):
     previous_qp = ""
     domtbl_q: list[namedtuple] = []
-    with ProcessPoolExecutor(NCPU) as executer:
+    with ProcessPoolExecutor(cpus) as executer:
         futures = []
         for domrow in tqdm(
             domtbl_df.itertuples(),
