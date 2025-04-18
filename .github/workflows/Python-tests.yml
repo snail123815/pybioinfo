@@ -51,11 +51,9 @@ jobs:
         sed -i "s/wrappers.*brightgreen)/wrappers | ![Coverage](https:\/\/img.shields.io\/badge\/coverage-${wrappers_cov}%25-brightgreen)/" readme.md
         sed -i "s/basic.*brightgreen)/basic | ![Coverage](https:\/\/img.shields.io\/badge\/coverage-${basic_cov}%25-brightgreen)/" readme.md
         
-        # Commit changes if running on main branch
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add readme.md
-          git commit -m "Update coverage badges" || echo "No changes to commit"
-          git push
-        fi
+        # Commit changes
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add readme.md
+        git commit -m "ci: Update coverage badges" || echo "No changes to commit"
+        git push
