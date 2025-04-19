@@ -1,3 +1,5 @@
+# This file is licensed under the MIT License
+
 """Build correlation between two genomes, find homologue for each protein.
 BLAST every protein in query file against target database,
 give the best hit that score (e and coverage) higher than required threshold.
@@ -70,7 +72,6 @@ for n in [dbFile, protsFasta, qname, tDbName, tableOut]:
             s not in fn
         ), f'"{s}" not allowed in the file names. Check: {n}\n{fn}.'
 
-
 if tableOut == "":
     tableOut = os.path.splitext(protsFasta)[0] + f"_{tDbName}"
 tableOut += "_corr"
@@ -103,7 +104,6 @@ blastpCmd = [
     "-max_target_seqs",
     "1",
 ]
-
 
 print("Running BLAST")
 print(" ".join(blastpCmd))
@@ -153,7 +153,7 @@ with open(tableOut, "w", encoding="utf-8") as outHandle:
 # # target name        accession  query name           accession    E-value  score  bias   E-value  score  bias   exp reg clu  ov env dom rep inc description of target
 # #------------------- ---------- -------------------- ---------- --------- ------ ----- --------- ------ -----   --- --- --- --- --- --- --- --- ---------------------
 # tr|A0A178UTI0|A0A178UTI0_ARATH -          TMLOC_00011          -            3.9e-18   68.1   0.0   4.9e-18   67.8   0.0   1.1   1   0   0   1   1   1   1 Carbonic anhydrase OS=Arabidopsis thaliana OX=3702 GN=At5g14740 PE=3 SV=1
-# tr|A0A178UT81|A0A178UT81_ARATH -          TMLOC_00011          -              4e-18   68.1   0.0   5.1e-18   67.7   0.0   1.1   1   0   0   1   1   1   1 Carbonic anhydrase OS=Arabidopsis thaliana OX=3702 GN=At5g14740 PE=3 SV=1
+# tr|A0A178UT81|A0A178UT81_ARATH -          TMLOC_00011          -              4e-18   68.1    0.0   5.1e-18   67.7   0.0   1.1   1   0   0   1    1   1   1 Carbonic anhydrase OS=Arabidopsis thaliana OX=3702 GN=At5g14740 PE=3 SV=1
 # tr|A0A654G125|A0A654G125_ARATH -          TMLOC_00011          -            4.4e-18   67.9   0.0   5.7e-18   67.6   0.0   1.1   1   0   0   1   1   1   1 Carbonic anhydrase OS=Arabidopsis thaliana OX=3702 GN=At5g14740 PE=3 SV=1
 # tr|A0A178V525|A0A178V525_ARATH -          TMLOC_00011          -            4.6e-18   67.9   0.0   6.9e-18   67.3   0.0   1.2   1   0   0   1   1   1   1 Carbonic anhydrase OS=Arabidopsis thaliana OX=3702 GN=AXX17_At4g38400 PE=3 SV=1
 # tr|Q56X90|Q56X90_ARATH         -          TMLOC_00011          -            4.6e-18   67.9   0.0   5.7e-18   67.5   0.0   1.0   1   0   0   1   1   1   1 Carbonic anhydrase OS=Arabidopsis thaliana OX=3702 GN=At3g01500 PE=2 SV=1

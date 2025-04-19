@@ -1,3 +1,5 @@
+<!-- This file is licensed under the MIT License -->
+
 # RNA-Seq data processing
 
 From raw reads to different gene expression.

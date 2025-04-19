@@ -17,3 +17,5 @@ tqdm>=4.62.0
 
 # Terminal plotting
 termplotlib>=0.3.5
+
+# This project is licensed under the MIT License

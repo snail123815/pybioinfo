@@ -1,3 +1,5 @@
+# This file is licensed under the MIT License
+
 # Example usage in module:
 #
 # from chipSeq_plot_pileup_comparisons import (
