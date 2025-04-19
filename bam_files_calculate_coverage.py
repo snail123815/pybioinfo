@@ -1,3 +1,5 @@
+# This file is licensed under the MIT License
+
 # samtools index bam for IGV
 import argparse
 import os

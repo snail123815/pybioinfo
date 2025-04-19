@@ -1,3 +1,5 @@
+# This file is licensed under the MIT License
+
 import argparse
 from pathlib import Path
 

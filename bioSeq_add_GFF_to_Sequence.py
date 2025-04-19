@@ -1,3 +1,5 @@
+# This file is licensed under the MIT License
+
 ############################
 # by Chao DU (杜超)
 # c.du@biology.leidenuniv.nl

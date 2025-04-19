@@ -1,3 +1,5 @@
+# This file is licensed under the MIT License
+
 # From assembly annotation output of Quasan.py 25f21f58947c42b842bd228fd7252e49a68aa880
 # https://gitlab.services.universiteitleiden.nl/ibl-bioinformatic/streptidy/-/blob/master/Quasan.py
 # centre = 'MBT'
