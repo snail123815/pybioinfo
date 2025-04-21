@@ -1,16 +1,18 @@
-# Process phmmer result - to make a phylogentic tree
+# Tree for all homologues protein
 
-## Why
+Make a tree for homologues proteins found by `phmmer` from a defined database. (Use sensitive if comprehensiveness is needed)
 
-`phmmer` provide multiple options but output table is not well under control. For example:
+## Challanges
 
-I want to find, based on the hmm sequence similarity algorithm, all homologous proteins of ProtA on UniProt Reference Proteomes database. Do a search on https://www.ebi.ac.uk/Tools/hmmer/search/phmmer resulted in many hits, a lot of may have multiple motif or part of the query sequence matched, each matched part will have a good score (very low E-value).
-
-However, the goal is to find good homologous protein, which represents and only represents the query protein. Threre may be a possiblity to elimiate partial hits by playing with difference "sequence" and "Hit" E-values, or bit scores. But I don't think it is valid and easy way.
+1. `phmmer` output domain hits only, while homologous protein needs to be much more similar. A hit should represent and only represent the query protein.
+2. Output table is not clearly parseable.
+3. Using "sensitive" mode is essential, may result too many hits.
 
 ## How
 
-From search result, download the JSON result file and the alignment fasta file (.afa).
+From search result, download
+1. JSON result file
+2. alignment fasta file (.afa).
 
 Parse JSON file, find the hit domains, if this domain covers the presumed essential region, then keep the protein, else discard it.
 

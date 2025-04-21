@@ -1,5 +1,9 @@
+import re
 import time
+from copy import deepcopy
 from functools import reduce
+
+from Bio import Phylo
 
 
 def makeList(ele1, ele2):
@@ -25,3 +29,7 @@ def timeDiffStr(a):
     d = abs(time.time() - a)
     h = int(d // 3600)
     return str(h).zfill(2) + time.strftime(":%M:%S", time.gmtime(d))
+
+
+def safe_name(name: str) -> str:
+    return re.sub(r"[ _:,();{}+*'\"[\]\/\t\n]+", "_", name)
