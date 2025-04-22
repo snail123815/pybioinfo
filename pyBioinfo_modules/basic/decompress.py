@@ -2,6 +2,7 @@ import subprocess
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import Literal
 
 IMPLEMENTED_COMPRESSION_FORMATS: list[str] = [".gz", ".xz"]
 
@@ -93,10 +94,15 @@ def decompressFile(filePath: Path) -> Path:
 
 
 def decompFileIfCompressed(
-    filePath: Path, allowedFormats: list[str] = IMPLEMENTED_COMPRESSION_FORMATS
+    filePath: Path,
+    allowedFormats: list[str] = IMPLEMENTED_COMPRESSION_FORMATS,
+    to_temp: bool = False,
 ) -> tuple[Path, bool]:
     if filePath.suffix in allowedFormats:
-        return decompressFile(filePath), True
+        if to_temp:
+            return decompressToTempTxt(filePath), True
+        else:
+            return decompressFile(filePath), True
     else:
         return filePath, False
 
