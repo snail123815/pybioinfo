@@ -50,6 +50,14 @@ Change parameters:
 - `tStart`, `tEnd` for start and end position of your target region on query protein sequence. One 'domain' of a 'hit' must cover the selected region.
 - [not implemented]`eThresh` for threshold of the full 'hit', a valid 'hit' must have a 'evalue' lower than this value.
 
+Use `esl-alimask` - remove columns from a multiple sequence alignment, then to fasta, then make tree, depends on the needs.
+
+```
+esl-alimask -t [options] msafile coords
+(remove a contiguous set of columns at the start and end of an alignment)
+for example, 23..100, 23/100, or 23-100 all work
+```
+
 ### 2. FastTree
 
 TO BE INCORPORATED

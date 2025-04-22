@@ -1,3 +1,7 @@
+# This tool is for single use, process json file from HMMER web
+# It is not thoroughly considered for other cases
+# TODO make it work with domtbl output from HMMER, wrapper.hmmer.filter...
+
 import json
 import os
 
