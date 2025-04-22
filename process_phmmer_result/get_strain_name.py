@@ -9,11 +9,16 @@ from ..pyBioinfo_modules.basic.tree import change_tree_node_name
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Change the name of proteins in the tree to the name of "
-            "specieces. The information is fetched from json output of phmmer "
-            "web application."
-            "Will also write a tsv file with two columns: "
-            "protein accession and species name."
+            """
+            Change the name of proteins in the tree to the name of
+            specieces. The information is fetched from json output of phmmer
+            web application.
+            Will also write a tsv file with two columns:
+            protein accession and species name.
+            Duplicated species names will be suffixed with a number, ranked by
+            the order of appearance in the json file (E values of hits, not
+            domains).
+            """
         )
     )
     parser.add_argument(
