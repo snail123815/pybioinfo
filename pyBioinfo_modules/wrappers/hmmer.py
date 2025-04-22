@@ -1,21 +1,29 @@
 import gzip
+import io
 import logging
-import lzma
 import re
 import subprocess
 from collections import OrderedDict, namedtuple
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import pandas as pd
+from Bio import SeqIO
 from tqdm import tqdm
-from wrappers.hmmer_config import hhpc
 
+from pyBioinfo_modules.basic.decompress import decompFileIfCompressed
 from pyBioinfo_modules.wrappers._environment_settings import (
     CONDAEXE,
     HMMER_ENV,
     SHELL,
     withActivateEnvCmd,
+)
+from pyBioinfo_modules.wrappers.hmmer_config import (
+    BaseHmmerConfig,
+    HmmerHomologousProtConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -84,9 +92,15 @@ def _find_break_point(target: str, ref_proteome_p: Path):
 
 
 def run_jackhmmer_full_proteome(
-    query_proteome_path, db_f, domtblout_path, ref_next_loc=0, cpus=8
+    query_proteome_path,
+    db_f,
+    domtblout_path,
+    ref_next_loc=0,
+    cpus=8,
+    hhpc: BaseHmmerConfig = HmmerHomologousProtConfig(),
 ):
     """
+    deprecated
     Run jackhmmer on the full proteome
     ref_proteome_path: Path to the reference proteome file
         A gzipped fasta file containing the sequences to search. Query.
@@ -126,11 +140,126 @@ def run_jackhmmer_full_proteome(
         print(jackhmmer_run.stderr.decode())
 
 
-def parse_domtblout():
-    return
+def run_jackhmmer(
+    query_fasta: Path | StringIO,
+    target_fasta_path: Path,
+    domtblout_path: Path,
+    jackhmmer_cfg: BaseHmmerConfig = BaseHmmerConfig(),
+    cpus: int = 8,
+):
+    # Write sequences from query_fasta to an in-memory text stream using StringIO
+
+    # Open the query_fasta file and parse as FASTA
+    # Alternatively, if you already have SeqRecord objects, use them directly.
+    if isinstance(query_fasta, Path):
+        query_fasta = decompFileIfCompressed(query_fasta, to_temp=True)[0]
+        query_input = open(query_fasta, "rt")
+    else:
+        query_input = query_fasta
+
+    jackhmmer_cmd = (
+        "jackhmmer"
+        f" -E {jackhmmer_cfg.T_E}"
+        f" --incE {jackhmmer_cfg.T_INCE}"
+        f" --domE {jackhmmer_cfg.T_DOME}"
+        f" --incdomE {jackhmmer_cfg.T_INCDOME}"
+        f" --cpu {cpus} --domtblout {domtblout_path} - {target_fasta_path}"
+    )
+
+    jackhmmer_run = subprocess.run(
+        withActivateEnvCmd(jackhmmer_cmd, HMMER_ENV, CONDAEXE, SHELL),
+        input=query_input.read().encode("utf-8"),
+        shell=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+
+    if jackhmmer_run.returncode != 0:
+        logger.error(
+            f"Error running jackhmmer: {jackhmmer_run.stderr.decode('utf-8')}"
+        )
+        raise RuntimeError(
+            f"Jackhmmer failed with return code {jackhmmer_run.returncode}"
+        )
+    else:
+        return 1
 
 
-def cal_cov(line: dict, dom_cov_regions: list[int]):
+def full_proteome_jackhmmer(
+    query_fasta_path,
+    target_fasta_path,
+    domtblout_path,
+    prots_per_group=10,
+    cpus=8,
+    hhpc: BaseHmmerConfig = HmmerHomologousProtConfig(),
+):
+    """
+    Run jackhmmer on the full proteome
+    ref_proteome_path: Path to the reference proteome file
+        A gzipped fasta file containing the sequences to search. Query.
+    db_f: Path to the database file
+        A gzipped fasta file containing the sequences to search against, make
+        sure there is no duplicated headers in this file
+    domtblout_path: Path to the output file
+        Format is --domtblout, it is concatenated from each group searches.
+        Please do exclude # lines in the middle when parsing.
+    """
+    query_seqs = list(
+        SeqIO.parse(
+            decompFileIfCompressed(query_fasta_path, to_temp=True)[0], "fasta"
+        )
+    )
+    output_handle = domtblout_path.open("wt")
+    header_written = False
+    last_header_skipped = False
+    for i in range(0, len(query_seqs), prots_per_group):
+        group_seqs = query_seqs[i : min(i + prots_per_group, len(query_seqs))]
+        group_seqs_io = io.StringIO()
+        SeqIO.write(group_seqs, group_seqs_io, "fasta")
+        group_seqs_io.seek(0)
+        group_seqs_out = NamedTemporaryFile()
+        run_jackhmmer(
+            group_seqs_io,
+            target_fasta_path,
+            group_seqs_out.name,
+            jackhmmer_cfg=hhpc,
+            cpus=cpus,
+        )
+        with open(group_seqs_out.name, "rt") as group_seqs_in:
+            for line in group_seqs_in:
+                if i == 0:
+                    # Write the header line only once
+                    if line.startswith("#"):
+                        if not header_written:
+                            output_handle.write(line)
+                    else:
+                        header_written = True
+                elif i >= len(query_seqs) / prots_per_group:
+                    if line.startswith("#"):
+                        if last_header_skipped:
+                            output_handle.write(line)
+                    else:
+                        last_header_skipped = True
+                if line.startswith("#"):
+                    continue
+                output_handle.write(line)
+        group_seqs_out.close()
+        group_seqs_io.close()
+    output_handle.close()
+
+
+def filter_domtblout(
+    domtbl_df: pd.DataFrame, include_ali_coords: list[tuple[int, int]] = []
+):
+    """ """
+    pass
+
+
+def cal_cov(
+    line: dict,
+    dom_cov_regions: list[int],
+    hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
+):
     """
     Run within each single protein lines
     Only the alignment of domains with E values lower than threshold
@@ -172,7 +301,10 @@ def remove_duplicates(file_p: Path) -> Path:
     return no_dup_path
 
 
-def read_domtbl(domtbl_p: Path) -> pd.DataFrame:
+def read_domtbl(
+    domtbl_p: Path,
+    hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
+) -> pd.DataFrame:
     def parse_one_line(
         l,
         domtbl_dict,
@@ -240,7 +372,10 @@ def read_domtbl(domtbl_p: Path) -> pd.DataFrame:
     return domtbl_df
 
 
-def process_single_query(domtbl_q: list[OrderedDict]):
+def process_single_query(
+    domtbl_q: list[OrderedDict],
+    hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
+):
     qp = domtbl_q[0]["qp"]
     dom_cov_regions = []
     match_dict = {

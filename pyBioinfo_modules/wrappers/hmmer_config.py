@@ -2,24 +2,26 @@ from dataclasses import dataclass
 
 
 @dataclass
-class HmmerHomologousProtConfig:
-    MIN_PROTEIN_LEN: int = 60
-    T_E: float = (
-        1e-5
-        # -E, *report* sequences <= E in output
-    )
-    T_INCE: float = (
-        1e-10
-        # --incE, *significance*, consider seqs <= incE as significance
-    )
-    T_DOME: float = (
-        1e-5
-        # --domE, *report* domains <= domE
-    )
+class BaseHmmerConfig:
+    """
+    Default configuration for HMMER tools.
+    """
+
+    T_E: float = 10  # -E, *report* sequences <= E in output
+    T_INCE: float = 0.001  # --incE, consider seqs <= incE as *significance*
+    T_DOME: float = 10  # --domE, *report* domains <= domE
     T_INCDOME: float = (
-        1e-10
-        # --incdomE, *significance*, consider domains <= incdomE as significance
+        0.001  # --incdomE, consider domains <= incdomE as *significance*
     )
+
+
+@dataclass
+class HmmerHomologousProtConfig(BaseHmmerConfig):
+    T_E: float = 1e-5
+    T_INCE: float = 1e-10
+    T_DOME: float = 1e-5
+    T_INCDOME: float = 1e-10
+    MIN_PROTEIN_LEN: int = 60
     GATHER_T_E: float = (
         1e-10
         # Domtbl filter, on column 7:
@@ -32,6 +34,3 @@ class HmmerHomologousProtConfig:
     )
     GATHER_T_COV: float = 0.7  # Coverage of both query and target
     LEN_DIFF: float = 0.2  # diff / min(qlen, tlen)
-
-
-hhpc = HmmerHomologousProtConfig()
