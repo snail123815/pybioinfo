@@ -23,6 +23,16 @@ def _read_macs_peakcalls(file: Path) -> pd.DataFrame:
         comment="#",
         index_col="name",
         usecols=columns,
+        dtype={
+            "chr": str,
+            "name": str,
+            "start": int,
+            "end": int,
+            "abs_summit": int,
+            "-log10(pvalue)": float,
+            "-log10(qvalue)": float,
+            "fold_enrichment": float,
+        },
     )
     return data
 
@@ -49,6 +59,9 @@ def _read_macs_common_peaks_bed_file(file: Path) -> pd.DataFrame:
     )
     data.columns = columns
     data.index.name = "name"
+    # Change datatype after reading:
+    # 'start' and 'end' as integers and the third column as float.
+    data = data.astype({"start": int, "end": int, columns[2]: float})
     return data
 
 
