@@ -233,8 +233,9 @@ def change_location_to_summit(
     peak_df.end = peak_df.abs_summit + to_right
     if seq_end_at:
         peak_df.end = min(peak_df.end, seq_end_at)
+    else:
+        peak_df.end = peak_df.end.clip(upper=peak_range_max)
     peak_df.start = peak_df.start.clip(lower=0)
-    peak_df.end = peak_df.end.clip(upper=peak_range_max)
     return peak_df
 
 
