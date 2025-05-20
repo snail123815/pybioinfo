@@ -79,7 +79,7 @@ def extract_seq_peaks_to_file(
     genome_file_path: Path,
     peak_file_path: Path,
     output_dir: Path,
-    filter_groups: list[list[str, Any]] | None = None,
+    filter_groups: list[tuple[str, list]] | None = None,
     around_summit: list[int] | None = None,
     overwrite: bool = False,
 ):
@@ -164,6 +164,7 @@ def main():
     parser.add_argument(
         "--around_summit",
         nargs=2,
+        type=int,
         help=(
             "Left and right "
             "around summit to extract sequence, will ignore "
@@ -203,7 +204,12 @@ def main():
     for file in files:
         output_fastas.append(
             extract_seq_peaks_to_file(
-                genome, file, output_dir, filters, overwrite=args.overwrite
+                genome,
+                file,
+                output_dir,
+                filters,
+                overwrite=args.overwrite,
+                around_summit=args.around_summit,
             )
         )
 

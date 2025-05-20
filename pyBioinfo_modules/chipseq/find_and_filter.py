@@ -228,11 +228,14 @@ def change_location_to_summit(
 ):
     if "abs_summit" not in peak_df.columns:
         raise Exception("No summit info in dataframe")
+    peak_range_max = peak_df.end.max()
     peak_df.start = peak_df.abs_summit - to_left
     peak_df.end = peak_df.abs_summit + to_right
     if seq_end_at:
         peak_df.end = min(peak_df.end, seq_end_at)
-    peak_df.start = max(peak_df.start, 1)
+    else:
+        peak_df.end = peak_df.end.clip(upper=peak_range_max)
+    peak_df.start = peak_df.start.clip(lower=0)
     return peak_df
 
 
