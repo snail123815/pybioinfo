@@ -92,7 +92,7 @@ def read_peak_file(file: Path) -> pd.DataFrame:
     # for each peak
     if file.suffix == ".xls":
         data = _read_macs_peakcalls(file)
-    elif file.suffix(".bed"):  # different peaks called by Macs2
+    elif file.suffix == ".bed":  # different peaks called by Macs2
         data = _read_macs_common_peaks_bed_file(file)
     else:
         raise Exception(f"File {file} not recognized")
