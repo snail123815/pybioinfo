@@ -5,7 +5,12 @@ import subprocess
 from pathlib import Path
 
 from pyBioinfo_modules.wrappers._environment_settings import (
-    CONDAEXE, MACS_ENV, MACS_PROGRAM, SHELL, withActivateEnvCmd)
+    CONDAEXE,
+    MACS_ENV,
+    MACS_PROGRAM,
+    SHELL,
+    withActivateEnvCmd,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +199,10 @@ def macs_callPeak(
         print("Running:")
         print(" ".join(args))
         p = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+            withActivateEnvCmd(" ".join(args), MACS_ENV, CONDAEXE, SHELL),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=True,
         )
         # Check return code and process output
         for line in p.stdout:
