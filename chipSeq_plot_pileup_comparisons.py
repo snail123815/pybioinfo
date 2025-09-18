@@ -62,17 +62,21 @@
 import argparse
 import logging
 import lzma
+import subprocess
+import zipfile
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
+from matplotlib.backends.backend_pdf import PdfPages
 
 from pyBioinfo_modules.bio_sequences.features_from_gbk import get_target_region
 from pyBioinfo_modules.bio_sequences.plot_genes import plot_genes
 from pyBioinfo_modules.chipseq.coverage import read_macs_pileup
+from pyBioinfo_modules.chipseq.read_peak_file import read_peak_file
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -134,6 +138,11 @@ def arg_parser():
         type=str,
         default="ChIP-seq pileup comparison",
         help="The title of the plot.",
+    )
+    parser.add_argument(
+        "--consolidate",
+        action="store_true",
+        help="Generate a consolidated PDF file with all plots and a ZIP file with all PNG files. Removes intermediate PNG files after consolidation.",
     )
 
     return parser
@@ -221,41 +230,112 @@ def plot_macs_pileup(
     ax.xaxis.set_ticks_position("bottom")
 
 
-def read_peak_list(peak_list: Path) -> Iterable[dict]:
-    with peak_list.open("rt") as f:
-        for line in f:
-            if (
-                line.startswith("#")
-                or line.startswith("chr")
-                or len(line.strip()) == 0
-            ):
-                continue
-            try:
-                (
-                    _,
-                    start,
-                    end,
-                    length,
-                    summit,
-                    pileup,
-                    _,
-                    fold_enrichment,
-                    _,
-                    name,
-                ) = line.strip().split("\t")
-            except ValueError:
-                print(line)
-                raise
+# def read_peak_file(peak_list: Path) -> Iterable[dict]:
+#     with peak_list.open("rt") as f:
+#         for line in f:
+#             if (
+#                 line.startswith("#")
+#                 or line.startswith("chr")
+#                 or len(line.strip()) == 0
+#             ):
+#                 continue
+#             try:
+#                 (
+#                     _,
+#                     start,
+#                     end,
+#                     length,
+#                     summit,
+#                     pileup,
+#                     _,
+#                     fold_enrichment,
+#                     _,
+#                     name,
+#                 ) = line.strip().split("\t")
+#             except ValueError:
+#                 print(line)
+#                 raise
 
-            yield {
-                "start": int(start),
-                "end": int(end),
-                "length": int(length),
-                "summit": int(summit),
-                "pileup": float(pileup),
-                "fold_enrichment": float(fold_enrichment),
-                "name": str(name),
-            }
+#             yield {
+#                 "start": int(start),
+#                 "end": int(end),
+#                 "length": int(length),
+#                 "summit": int(summit),
+#                 "pileup": float(pileup),
+#                 "fold_enrichment": float(fold_enrichment),
+#                 "name": str(name),
+#             }
+
+
+def try_imagemagick_pdf(png_files: List[Path], pdf_path: Path) -> bool:
+    """Try to create PDF using ImageMagick. Returns True if successful."""
+    try:
+        cmd = (
+            ["magick"]
+            + [str(p) for p in png_files]
+            + ["-compress", "lzw", str(pdf_path)]
+        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        log.info(f"Successfully created PDF using ImageMagick: {pdf_path}")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        log.warning(f"ImageMagick failed or not available: {e}")
+        return False
+
+
+def create_pdf_matplotlib(png_files: List[Path], pdf_path: Path) -> None:
+    """Create PDF from PNG files using matplotlib."""
+    from PIL import Image
+
+    with PdfPages(str(pdf_path)) as pdf:
+        for png_file in png_files:
+            try:
+                img = Image.open(png_file)
+                fig = plt.figure(figsize=(img.width / 100, img.height / 100))
+                ax = fig.add_axes((0, 0, 1, 1))
+                ax.imshow(img)
+                ax.axis("off")
+                pdf.savefig(fig, bbox_inches="tight", pad_inches=0)
+                plt.close(fig)
+                log.info(f"Added {png_file} to PDF")
+            except Exception as e:
+                log.error(f"Failed to add {png_file} to PDF: {e}")
+    log.info(f"Successfully created PDF using matplotlib: {pdf_path}")
+
+
+def consolidate_files(
+    png_files: List[Path], base_name: str, output_dir: Path
+) -> None:
+    """Create consolidated PDF and ZIP files, then remove intermediate PNG files."""
+    if not png_files:
+        log.warning("No PNG files to consolidate")
+        return
+
+    # Create PDF
+    pdf_path = output_dir / f"{base_name}_plots.pdf"
+
+    # Try ImageMagick first, fall back to matplotlib
+    if not try_imagemagick_pdf(png_files, pdf_path):
+        log.info("Falling back to matplotlib for PDF creation")
+        create_pdf_matplotlib(png_files, pdf_path)
+
+    # Create ZIP file
+    zip_path = output_dir / f"{base_name}_plots.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for png_file in png_files:
+            zipf.write(png_file, png_file.name)
+            log.info(f"Added {png_file} to ZIP")
+    log.info(f"Successfully created ZIP file: {zip_path}")
+
+    # Remove intermediate PNG files
+    for png_file in png_files:
+        try:
+            png_file.unlink()
+            log.info(f"Removed intermediate file: {png_file}")
+        except Exception as e:
+            log.error(f"Failed to remove {png_file}: {e}")
+
+    log.info(f"Consolidation complete. Generated: {pdf_path} and {zip_path}")
 
 
 def __main__():
@@ -263,9 +343,12 @@ def __main__():
     args = argparser.parse_args()
 
     if args.peak_list:
-        peaks = list(read_peak_list(args.peak_list))
+        peaks = read_peak_file(args.peak_list)
 
     genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
+
+    # Track generated PNG files for consolidation
+    generated_png_files: List[Path] = []
 
     if not args.peak_list:
         tr_start, tr_end = get_target_region(
@@ -289,10 +372,16 @@ def __main__():
         ax.set_title(args.title)
         fig.savefig(args.savefig, dpi=100)
     else:
-        for peak in peaks:
-            location = peak["summit"]
+        for _, peak in peaks.iterrows():
             start, end = peak["start"], peak["end"]
-            length = peak["length"]
+            try:
+                location = peak["summit"]
+            except KeyError:
+                location = (start + end) // 2
+            try:
+                length = peak["length"]
+            except KeyError:
+                length = end - start
             # Expand both side by length of "summit to edge plus peak length"
             # or 1500 bp if that value < 1500
             flanking = max(
@@ -320,16 +409,27 @@ def __main__():
             )
             if "_temp" not in args.savefig.name:
                 savefig = args.savefig.with_name(
-                    args.savefig.stem + f"_{peak['name']}.png"
+                    args.savefig.stem + f"_{peak.name}.png"
                 )
             else:
-                savefig = Path(f"./{peak['name']}.png")
+                savefig = Path(f"./{peak.name}.png")
             if args.title:
-                title = f"{args.title} - {peak['name']}"
+                title = f"{args.title} - {peak.name}"
             log.info(f"Saving plot to {savefig}")
             ax.set_title(title)
             fig.savefig(savefig, dpi=100)
             plt.close(fig)
+
+            # Track the generated PNG file
+            generated_png_files.append(savefig)
+
+    # Handle consolidation if requested
+    if args.consolidate and generated_png_files:
+        base_name = (
+            args.savefig.stem if args.savefig.stem != "__temp" else "peakplots"
+        )
+        output_dir = Path(args.savefig).parent
+        consolidate_files(generated_png_files, base_name, output_dir)
 
 
 if __name__ == "__main__":
