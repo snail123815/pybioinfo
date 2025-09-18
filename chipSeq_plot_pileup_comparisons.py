@@ -100,7 +100,7 @@ def arg_parser():
         help="The path to the genome file.",
         required=True,
     )
-    arg_group1 = parser.add_mutually_exclusive_group(required=True)
+    arg_group1 = parser.add_mutually_exclusive_group(required=False)
     arg_group1.add_argument(
         "--region",
         type=str,
@@ -313,6 +313,9 @@ def __main__():
     argparser = arg_parser()
     args = argparser.parse_args()
 
+    if not args.peak_list and not args.region and not args.gene:
+        log.info("Peak list is not provided, will try to get from macs output.")
+        args.peak_list = list(args.macsOutput.glob("*_peaks.xls"))[0]
     if args.peak_list:
         peaks = read_peak_file(args.peak_list)
 
@@ -321,7 +324,7 @@ def __main__():
     # Track generated PNG files for consolidation
     generated_png_files: list[Path] = []
 
-    if not args.peak_list:
+    if not args.peak_list:  # Plot a single region
         tr_start, tr_end = get_target_region(
             args.region, args.gene, args.flanking, genome_with_annotation
         )
