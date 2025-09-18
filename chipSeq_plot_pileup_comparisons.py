@@ -61,11 +61,10 @@
 
 import argparse
 import logging
-import lzma
 import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
-from typing import Iterable, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -230,60 +229,32 @@ def plot_macs_pileup(
     ax.xaxis.set_ticks_position("bottom")
 
 
-# def read_peak_file(peak_list: Path) -> Iterable[dict]:
-#     with peak_list.open("rt") as f:
-#         for line in f:
-#             if (
-#                 line.startswith("#")
-#                 or line.startswith("chr")
-#                 or len(line.strip()) == 0
-#             ):
-#                 continue
-#             try:
-#                 (
-#                     _,
-#                     start,
-#                     end,
-#                     length,
-#                     summit,
-#                     pileup,
-#                     _,
-#                     fold_enrichment,
-#                     _,
-#                     name,
-#                 ) = line.strip().split("\t")
-#             except ValueError:
-#                 print(line)
-#                 raise
-
-#             yield {
-#                 "start": int(start),
-#                 "end": int(end),
-#                 "length": int(length),
-#                 "summit": int(summit),
-#                 "pileup": float(pileup),
-#                 "fold_enrichment": float(fold_enrichment),
-#                 "name": str(name),
-#             }
-
-
-def try_imagemagick_pdf(png_files: List[Path], pdf_path: Path) -> bool:
+def try_imagemagick_pdf(png_files: list[Path], pdf_path: Path) -> bool:
     """Try to create PDF using ImageMagick. Returns True if successful."""
+
     try:
-        cmd = (
-            ["magick"]
-            + [str(p) for p in png_files]
-            + ["-compress", "lzw", str(pdf_path)]
-        )
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        log.info(f"Successfully created PDF using ImageMagick: {pdf_path}")
-        return True
+        # Use file list to avoid ARG_MAX issues
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False
+        ) as f:
+            for png_file in png_files:
+                f.write(f"{png_file}\n")
+            file_list = f.name
+
+        try:
+            cmd = ["magick", f"@{file_list}", "-compress", "lzw", str(pdf_path)]
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            log.info(f"Successfully created PDF using ImageMagick: {pdf_path}")
+            return True
+        finally:
+            Path(file_list).unlink(missing_ok=True)
+
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         log.warning(f"ImageMagick failed or not available: {e}")
         return False
 
 
-def create_pdf_matplotlib(png_files: List[Path], pdf_path: Path) -> None:
+def create_pdf_matplotlib(png_files: list[Path], pdf_path: Path) -> None:
     """Create PDF from PNG files using matplotlib."""
     from PIL import Image
 
@@ -304,7 +275,7 @@ def create_pdf_matplotlib(png_files: List[Path], pdf_path: Path) -> None:
 
 
 def consolidate_files(
-    png_files: List[Path], base_name: str, output_dir: Path
+    png_files: list[Path], base_name: str, output_dir: Path
 ) -> None:
     """Create consolidated PDF and ZIP files, then remove intermediate PNG files."""
     if not png_files:
@@ -348,7 +319,7 @@ def __main__():
     genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
 
     # Track generated PNG files for consolidation
-    generated_png_files: List[Path] = []
+    generated_png_files: list[Path] = []
 
     if not args.peak_list:
         tr_start, tr_end = get_target_region(
