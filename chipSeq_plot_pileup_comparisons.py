@@ -312,6 +312,10 @@ def consolidate_files(
 def __main__():
     argparser = arg_parser()
     args = argparser.parse_args()
+    if args.savefig.suffix not in [".png", ".jpg", ".jpeg", ".tiff", ".bmp"]:
+        # do not use "with_suffix" as it will remove false suffix if
+        # any dot in the name
+        args.savefig = args.savefig.parent / (args.savefig.name + ".png")
 
     if not args.peak_list and not args.region and not args.gene:
         log.info("Peak list is not provided, will try to get from macs output.")
