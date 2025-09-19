@@ -1,63 +1,65 @@
-# This file is licensed under the MIT License
+"""Plot MACS pileup comparison between control and treatment samples.
+This file is licensed under the MIT License
 
-# Example usage in module:
-#
-# from chipSeq_plot_pileup_comparisons import (
-# arg_parser,
-# read_input,
-# plot_pileup,
-# get_target_region,
-# )
-# import matplotlib.pyplot as plt
-# from Bio import SeqIO
-#
-#
-# fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-# args_list = [
-# "--macsOutput",
-# "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
-# "--genome",
-# "~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
-# "--region",
-# "1,968,245-1,969,261",
-# ]
-# args = arg_parser().parse_args(args_list)
-# genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
-# tr_start, tr_end = get_target_region(args, genome_with_annotation)
-# tr_control_data, tr_treat_data = read_input(args, tr_start, tr_end)
-#
-# plot_pileup(
-# axs[0],
-# tr_control_data,
-# tr_treat_data,
-# tr_start,
-# tr_end,
-# genome_with_annotation,
-# do_logscale=False
-# )
-#
-# args_list = [
-# "--macsOutput",
-# "~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
-# "--genome",
-# "~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
-# "--region",
-# "1,968,245-1,969,261",
-# "--logscale",
-# ]
-# args = arg_parser().parse_args(args_list)
-# genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
-# plot_pileup(
-# axs[1],
-# tr_control_data,
-# tr_treat_data,
-# tr_start,
-# tr_end,
-# genome_with_annotation,
-# do_logscale=True
-# )
-#
-# fig.savefig("multiple_plot.png", dpi=600)
+Example usage in module:
+
+from chipSeq_plot_pileup_comparisons import (
+arg_parser,
+read_input,
+plot_pileup,
+get_target_region,
+)
+import matplotlib.pyplot as plt
+from Bio import SeqIO
+
+
+fig, axs = plt.subplots(2, 1, figsize=(10, 8))
+args_list = [
+"--macsOutput",
+"~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
+"--genome",
+"~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
+"--region",
+"1,968,245-1,969,261",
+]
+args = arg_parser().parse_args(args_list)
+genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
+tr_start, tr_end = get_target_region(args, genome_with_annotation)
+tr_control_data, tr_treat_data = read_input(args, tr_start, tr_end)
+
+plot_pileup(
+axs[0],
+tr_control_data,
+tr_treat_data,
+tr_start,
+tr_end,
+genome_with_annotation,
+do_logscale=False
+)
+
+args_list = [
+"--macsOutput",
+"~/data/Proj.Community_DAP_to_ChIP/Phase_I_testing_202408/macs3_peakcalling/comm002",
+"--genome",
+"~/data/Proj.Community_DAP_to_ChIP/M145_assembly_AL645882.gb",
+"--region",
+"1,968,245-1,969,261",
+"--logscale",
+]
+args = arg_parser().parse_args(args_list)
+genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
+plot_pileup(
+axs[1],
+tr_control_data,
+tr_treat_data,
+tr_start,
+tr_end,
+genome_with_annotation,
+do_logscale=True
+)
+
+fig.savefig("multiple_plot.png", dpi=600)
+"""
 
 import argparse
 import logging
@@ -72,6 +74,7 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_pdf import PdfPages
+from PIL import Image, UnidentifiedImageError
 
 from pyBioinfo_modules.bio_sequences.features_from_gbk import get_target_region
 from pyBioinfo_modules.bio_sequences.plot_genes import plot_genes
@@ -83,6 +86,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def arg_parser():
+    """Argument parser for the script chipSeq_plot_pileup_comparisons.py"""
     parser = argparse.ArgumentParser(
         description=(
             "Read pileup value (coverage) from macs output pileup file, "
@@ -142,7 +146,11 @@ def arg_parser():
     parser.add_argument(
         "--consolidate",
         action="store_true",
-        help="Generate a consolidated PDF file with all plots and a ZIP file with all PNG files. Removes intermediate PNG files after consolidation.",
+        help=(
+            "Generate a consolidated PDF file with all plots and a ZIP file "
+            "with all PNG files. "
+            "Removes intermediate PNG files after consolidation."
+        ),
     )
 
     return parser
@@ -162,13 +170,20 @@ def plot_macs_pileup(
     given axis.
 
     Parameters:
-    ax (matplotlib.axes.Axes): The axis to plot on.
-    tr_control_data (numpy.ndarray): The control data array with genomic positions and pileup values.
-    tr_treat_data (numpy.ndarray): The treatment data array with genomic positions and pileup values.
-    tr_start (int): The start position of the genomic region to plot.
-    tr_end (int): The end position of the genomic region to plot.
-    do_logscale (bool, optional): Whether to use a logarithmic scale for the y-axis. Default is False.
-    genome_with_annotation (dict, optional): A dictionary containing genome annotation data. Default is None.
+    ax (matplotlib.axes.Axes):
+        The axis to plot on.
+    tr_control_data (numpy.ndarray):
+        The control data array with genomic positions and pileup values.
+    tr_treat_data (numpy.ndarray):
+        The treatment data array with genomic positions and pileup values.
+    tr_start (int):
+        The start position of the genomic region to plot.
+    tr_end (int):
+        The end position of the genomic region to plot.
+    do_logscale (bool, optional):
+        Whether to use a logarithmic scale for the y-axis. Default is False.
+    genome_with_annotation (dict, optional):
+        A dictionary containing genome annotation data. Default is None.
 
     Returns:
     None
@@ -245,19 +260,18 @@ def try_imagemagick_pdf(png_files: list[Path], pdf_path: Path) -> bool:
         try:
             cmd = ["magick", f"@{file_list}", "-compress", "lzw", str(pdf_path)]
             subprocess.run(cmd, capture_output=True, text=True, check=True)
-            log.info(f"Successfully created PDF using ImageMagick: {pdf_path}")
+            log.info("Successfully created PDF using ImageMagick: %s", pdf_path)
             return True
         finally:
             Path(file_list).unlink(missing_ok=True)
 
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        log.warning(f"ImageMagick failed or not available: {e}")
+        log.warning("ImageMagick failed or not available: %s", e)
         return False
 
 
 def create_pdf_matplotlib(png_files: list[Path], pdf_path: Path) -> None:
     """Create PDF from PNG files using matplotlib."""
-    from PIL import Image
 
     with PdfPages(str(pdf_path)) as pdf:
         for png_file in png_files:
@@ -269,10 +283,10 @@ def create_pdf_matplotlib(png_files: list[Path], pdf_path: Path) -> None:
                 ax.axis("off")
                 pdf.savefig(fig, bbox_inches="tight", pad_inches=0)
                 plt.close(fig)
-                log.info(f"Added {png_file} to PDF")
-            except Exception as e:
-                log.error(f"Failed to add {png_file} to PDF: {e}")
-    log.info(f"Successfully created PDF using matplotlib: {pdf_path}")
+                log.info("Added %s to PDF", png_file)
+            except (UnidentifiedImageError, OSError, ValueError) as e:
+                log.error("Failed to add %s to PDF: %s", png_file, e)
+    log.info("Successfully created PDF using matplotlib: %s", pdf_path)
 
 
 def consolidate_files(
@@ -296,18 +310,18 @@ def consolidate_files(
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for png_file in png_files:
             zipf.write(png_file, png_file.name)
-            log.info(f"Added {png_file} to ZIP")
-    log.info(f"Successfully created ZIP file: {zip_path}")
+            log.info("Added %s to ZIP", png_file)
+    log.info("Successfully created ZIP file: %s", zip_path)
 
     # Remove intermediate PNG files
     for png_file in png_files:
         try:
             png_file.unlink()
-            log.info(f"Removed intermediate file: {png_file}")
-        except Exception as e:
-            log.error(f"Failed to remove {png_file}: {e}")
+            log.info("Removed intermediate file: %s", png_file)
+        except OSError as e:
+            log.error("Failed to remove %s: %s", png_file, e)
 
-    log.info(f"Consolidation complete. Generated: {pdf_path} and {zip_path}")
+    log.info("Consolidation complete. Generated: %s and %s", pdf_path, zip_path)
 
 
 def __main__():
@@ -325,7 +339,7 @@ def __main__():
     genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
 
     # Track generated PNG files for consolidation
-    generated_png_files: list[Path] = []
+    generated_png_files = []
 
     if not args.peak_list:  # Plot a single region
         tr_start, tr_end = get_target_region(
@@ -394,7 +408,7 @@ def __main__():
             title = f"ChIP-seq pileup comparison - {peak.name}"
             if args.title:
                 title = f"{args.title} - {peak.name}"
-            log.info(f"Saving plot to {savefig}")
+            log.info("Saving plot to %s", savefig)
             ax.set_title(title)
             fig.savefig(savefig, dpi=100)
             plt.close(fig)
