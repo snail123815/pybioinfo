@@ -65,6 +65,32 @@ def _read_macs_common_peaks_bed_file(file: Path) -> pd.DataFrame:
     return data
 
 
+def _read_minimum_peak_file(file: Path) -> pd.DataFrame:
+    """Reads a peak file, only use the minimum information
+    and returns a DataFrame.
+    """
+    columns = [
+        "chr",
+        "name",
+        "start",
+        "end",
+    ]
+    data = pd.read_csv(
+        file,
+        delimiter="\t",
+        comment="#",
+        index_col="name",
+        usecols=columns,
+        dtype={
+            "chr": str,
+            "name": str,
+            "start": int,
+            "end": int,
+        },
+    )
+    return data
+
+
 def read_common_peaks_tsv(file):
     """
     ! not used by general script
@@ -92,9 +118,12 @@ def read_peak_file(file: Path) -> pd.DataFrame:
     # for each peak
     if file.suffix == ".xls":
         data = _read_macs_peakcalls(file)
-    elif file.suffix(".bed"):  # different peaks called by Macs2
+    elif file.suffix == ".bed":  # different peaks called by Macs2
         data = _read_macs_common_peaks_bed_file(file)
     else:
-        raise Exception(f"File {file} not recognized")
+        try:
+            data = _read_minimum_peak_file(file)
+        except Exception:
+            raise Exception(f"File {file} not recognized")
     data.columns = data.columns.str.lower()
     return data
