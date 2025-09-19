@@ -70,6 +70,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_pdf import PdfPages
 
 from pyBioinfo_modules.bio_sequences.features_from_gbk import get_target_region
@@ -148,7 +149,7 @@ def arg_parser():
 
 
 def plot_macs_pileup(
-    ax: plt.Axes,
+    ax: Axes,
     tr_control_data: np.ndarray,
     tr_treat_data: np.ndarray,
     tr_start: int,
@@ -320,8 +321,6 @@ def __main__():
     if not args.peak_list and not args.region and not args.gene:
         log.info("Peak list is not provided, will try to get from macs output.")
         args.peak_list = list(args.macsOutput.glob("*_peaks.xls"))[0]
-    if args.peak_list:
-        peaks = read_peak_file(args.peak_list)
 
     genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
 
@@ -350,6 +349,7 @@ def __main__():
         ax.set_title(args.title)
         fig.savefig(args.savefig, dpi=100)
     else:
+        peaks = read_peak_file(args.peak_list)
         for _, peak in peaks.iterrows():
             start, end = peak["start"], peak["end"]
             try:
@@ -391,6 +391,7 @@ def __main__():
                 )
             else:
                 savefig = Path(f"./{peak.name}.png")
+            title = f"ChIP-seq pileup comparison - {peak.name}"
             if args.title:
                 title = f"{args.title} - {peak.name}"
             log.info(f"Saving plot to {savefig}")
