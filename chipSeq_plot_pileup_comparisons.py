@@ -132,6 +132,32 @@ def arg_parser():
         help="Whether to plot the y-axis in log scale.",
     )
     parser.add_argument(
+        "--ymax",
+        type=int,
+        default=None,
+        help="The maximum y-axis value for the pileup plot.",
+    )
+    parser.add_argument(
+        "--ymin",
+        type=int,
+        default=None,
+        help="The minimum y-axis value for the pileup plot.",
+    )
+    parser.add_argument(
+        "--peak_alpha",
+        type=float,
+        default=1.0,
+        help="The alpha (transparency) value for the peak plot.",
+    )
+    parser.add_argument(
+        "--no_control_mask",
+        action="store_true",
+        help=(
+            "If set, do not mask treatment values below control values. "
+            "This is useful for comparing two samples."
+        ),
+    )
+    parser.add_argument(
         "--savefig",
         type=Path,
         default="./__temp.png",
@@ -163,6 +189,10 @@ def plot_macs_pileup(
     tr_start: int,
     tr_end: int,
     do_logscale: bool = False,
+    ymax_given: int | None = None,
+    ymin_given: int | None = None,
+    no_control_mask: bool = False,
+    peak_alpha: float = 1.0,
     genome_with_annotation: SeqRecord | None = None,
 ) -> None:
     """
@@ -189,11 +219,19 @@ def plot_macs_pileup(
     None
     """
     # Plot control pileup
+    # Color settings
+    peak_color = "C1"
+    if no_control_mask:
+        ctrl_color = "dimgray"
+        base_color = "C1"
+    else:
+        ctrl_color = "silver"
+        base_color = "dimgray"
     ax.plot(
         tr_control_data[:, 0],
         tr_control_data[:, 1],
         label="Genome-seq",
-        color="silver",
+        color=ctrl_color,
     )
 
     # Plot treat pileup
@@ -205,8 +243,10 @@ def plot_macs_pileup(
     )
     x = tr_treat_data[:, 0]
 
-    ax.plot(x, base_line, label="ChIP-seq", color="dimgray")
-    ax.plot(x, peaks, label="ChIP-seq peaks", color="C1")
+    ax.plot(x, base_line, label="ChIP-seq", color=base_color, alpha=peak_alpha)
+    ax.plot(
+        x, peaks, label="ChIP-seq peaks", color=peak_color, alpha=peak_alpha
+    )
     ax.legend()
     ax.spines["top"].set_visible(False)  # Hide the top spine
     ax.spines["right"].set_visible(False)  # Hide the right spine
@@ -233,6 +273,10 @@ def plot_macs_pileup(
         ymax = ax.get_ylim()[1]
         ymin = 0
 
+    if ymax_given is not None:
+        ymax = ymax_given
+    if ymin_given is not None:
+        ymin = ymin_given
     ax.set_ylabel("Pileup")
     ax.set_ylim(ymin, ymax)
     # Remove y-ticks below zero
@@ -366,6 +410,10 @@ def __main__():
             tr_treat_data,
             tr_start,
             tr_end,
+            peak_alpha=args.peak_alpha,
+            ymax_given=args.ymax,
+            ymin_given=args.ymin,
+            no_control_mask=args.no_control_mask,
             do_logscale=args.logscale,
             genome_with_annotation=genome_with_annotation,
         )
@@ -405,7 +453,11 @@ def __main__():
                 tr_treat_data,
                 tr_start,
                 tr_end,
+                ymax_given=args.ymax,
+                ymin_given=args.ymin,
+                peak_alpha=args.peak_alpha,
                 do_logscale=args.logscale,
+                no_control_mask=args.no_control_mask,
                 genome_with_annotation=genome_with_annotation,
             )
             if "_temp" not in args.savefig.name:
