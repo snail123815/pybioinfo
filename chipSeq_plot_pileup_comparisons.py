@@ -336,7 +336,16 @@ def __main__():
         log.info("Peak list is not provided, will try to get from macs output.")
         args.peak_list = list(args.macsOutput.glob("*_peaks.xls"))[0]
 
-    genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
+    try:
+        genome_with_annotation = SeqIO.read(args.genome.expanduser(), "genbank")
+    except ValueError as e:
+        log.warning(
+            "Failed to read genome with annotation from %s: %s",
+            args.genome,
+            e,
+        )
+        SeqIO.read(args.genome.expanduser(), "fasta")
+        genome_with_annotation = None
 
     # Track generated PNG files for consolidation
     generated_png_files = []

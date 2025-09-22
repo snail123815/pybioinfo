@@ -10,8 +10,9 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from pyBioinfo_modules.basic.decompress import decompFileIfCompressed
-from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import \
-    GBK_EXTENSIONS
+from pyBioinfo_modules.bio_sequences.bio_seq_file_extensions import (
+    GBK_EXTENSIONS,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -188,9 +189,14 @@ def get_target_region(
         ValueError: If the region format is invalid.
     """
 
-    assert (
-        genome_with_annotation is not None
-    ), "Genome with annotation is required."
+    # assert (
+    #     genome_with_annotation is not None
+    # ), "Genome with annotation is required."
+    if genome_with_annotation is None:
+        assert region is not None, (
+            "When genome_with_annotation is not provided, --region is required."
+            " Gene cannot be used without genome annotation."
+        )
     if gene is None:
         assert (
             region is not None
