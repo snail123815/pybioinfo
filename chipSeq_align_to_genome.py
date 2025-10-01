@@ -16,7 +16,9 @@ parser.add_argument(
 parser.add_argument(
     "-o", "--output", type=Path, help="Target directory for output bam files"
 )
-parser.add_argument("-p", "--processers", type=int, help="number of cpu to use")
+parser.add_argument(
+    "-p", "--processers", type=int, default=2, help="number of cpu to use"
+)
 
 args = parser.parse_args()
 output_path = args.output
