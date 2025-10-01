@@ -113,6 +113,8 @@ def parse_comparison_file(compFile: Path, bamPath: Path) -> dict[str:Path]:
     experimentDict = {}
     with open(compFile, "r") as f:
         for i, l in enumerate(f.readlines()):
+            if l.strip() == "":
+                continue
             ls = l.strip().split("\t")
             if i == 0:
                 assert all(x in ls for x in ["name", "ctr", "exp"]), (

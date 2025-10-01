@@ -8,10 +8,12 @@ from typing import IO
 from Bio import SeqIO
 
 from pyBioinfo_modules.basic.basic import getTimeStr, timeDiffStr
-from pyBioinfo_modules.basic.parse_raw_read_dir import \
-    get_read_files_per_sample
+from pyBioinfo_modules.basic.parse_raw_read_dir import get_read_files_per_sample
 from pyBioinfo_modules.wrappers._environment_settings import (
-    SHELL, SHORTREADS_ENV, withActivateEnvCmd)
+    SHELL,
+    SHORTREADS_ENV,
+    withActivateEnvCmd,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +206,8 @@ def multiple_raw_align_bowtie2(
     out: Path,
     isPe: bool,
     genomes: list[Path],
-    ncpu: int,
-    dryRun: bool,
+    ncpu: int = 2,
+    dryRun: bool = False,
 ):
     """
     Align multiple raw reads to reference genome(s) using Bowtie2 and convert outputs to BAM format.
@@ -315,5 +317,7 @@ def multiple_raw_align_bowtie2(
         if isinstance(
             handler, logging.FileHandler
         ) and handler.baseFilename == str(out / "align.log"):
+            logger.removeHandler(handler)
+            handler.close()
             logger.removeHandler(handler)
             handler.close()
