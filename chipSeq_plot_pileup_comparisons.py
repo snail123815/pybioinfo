@@ -178,6 +178,12 @@ def arg_parser():
             "Removes intermediate PNG files after consolidation."
         ),
     )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=100,
+        help="The DPI (dots per inch) for the output image.",
+    )
 
     return parser
 
@@ -418,7 +424,7 @@ def __main__():
             genome_with_annotation=genome_with_annotation,
         )
         ax.set_title(args.title)
-        fig.savefig(args.savefig, dpi=100)
+        fig.savefig(args.savefig, dpi=args.dpi)
     else:
         peaks = read_peak_file(args.peak_list)
         for _, peak in peaks.iterrows():
@@ -471,7 +477,7 @@ def __main__():
                 title = f"{args.title} - {peak.name}"
             log.info("Saving plot to %s", savefig)
             ax.set_title(title)
-            fig.savefig(savefig, dpi=100)
+            fig.savefig(savefig, dpi=args.dpi)
             plt.close(fig)
 
             # Track the generated PNG file
