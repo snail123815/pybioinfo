@@ -16,9 +16,7 @@ from tqdm import tqdm
 
 from pyBioinfo_modules.basic.decompress import decompFileIfCompressed
 from pyBioinfo_modules.wrappers._environment_settings import (
-    CONDAEXE,
     HMMER_ENV,
-    SHELL,
     withActivateEnvCmd,
 )
 from pyBioinfo_modules.wrappers.hmmer_config import (
@@ -86,7 +84,7 @@ def _find_break_point(target: str, ref_proteome_p: Path):
     with gzip.open(ref_proteome_p, "rt") as rpp:
         rpp.seek(next_seek_loc)
         for i in range(5):
-            print(rpp.readline())
+            logger.debug(rpp.readline())
 
     return next_seek_loc
 
@@ -118,7 +116,7 @@ def run_jackhmmer(
     )
 
     jackhmmer_run = subprocess.run(
-        withActivateEnvCmd(jackhmmer_cmd, HMMER_ENV, CONDAEXE, SHELL),
+        withActivateEnvCmd(jackhmmer_cmd, HMMER_ENV),
         input=query_input.read().encode("utf-8"),
         shell=True,
         stdout=subprocess.DEVNULL,
@@ -241,7 +239,7 @@ def calculate_domain_coverage(
 
 def remove_duplicates(file_p: Path) -> Path:
     no_dup_path = file_p.parent / f"{file_p.stem}_nodup{file_p.suffix}"
-    print(f"Removing duplicates from file {file_p} -> {no_dup_path}")
+    logger.info(f"Removing duplicates from file {file_p} -> {no_dup_path}")
     ddup = subprocess.run(
         f"awk '!seen[$0]++' {file_p} > {no_dup_path}", shell=True
     )
@@ -255,13 +253,13 @@ def read_domtbl(
     domtbl_splitter=re.compile(r" +"),  # Split by spaces
 ) -> pd.DataFrame:
 
-    print(f"Counting lines in domtblout from jackhmmer: {domtbl_p}")
+    logger.info(f"Counting lines in domtblout from jackhmmer: {domtbl_p}")
     domtbl_len = int(
         subprocess.run(["wc", "-l", domtbl_p], capture_output=True)
         .stdout.decode()
         .split(" ")[0]
     )
-    print(f"{domtbl_len} lines in total.")
+    logger.info(f"{domtbl_len} lines in total.")
 
     # Initialize domtbl_dict with header keys
     domtbl_dict = {}
@@ -310,11 +308,11 @@ def read_domtbl(
                     domtbl_dict["full_E"].append(full_E)
                     domtbl_dict["anno"].append(" ".join(line_list[22:]))
                 except ValueError as ve:
-                    print(l)
+                    logger.error(f"Error parsing line: {l}")
                     raise ve
-    print("Converting data to dataframe...", end="")
+    logger.info("Converting data to dataframe...")
     domtbl_df = pd.DataFrame(domtbl_dict)
-    print("Done.")
+    logger.info("Done.")
     return domtbl_df
 
 
