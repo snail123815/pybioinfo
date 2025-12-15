@@ -23,14 +23,14 @@ from pyBioinfo_modules.wrappers._environment_settings import (
 )
 from pyBioinfo_modules.wrappers.hmmer_config import (
     BaseHmmerTblFilters,
-    HmmerHomologousProtConfig,
+    HmmerHomologousProtFillters,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def run_hmmsearch():
-    return
+    raise NotImplementedError("run_hmmsearch is not implemented")
 
 
 def _find_break_point(target: str, ref_proteome_p: Path):
@@ -142,14 +142,18 @@ def full_proteome_jackhmmer(
     domtblout_path,
     prots_per_group=10,
     cpus=8,
-    hmmer_filters: BaseHmmerTblFilters = HmmerHomologousProtConfig,
+    hmmer_filters: BaseHmmerTblFilters = HmmerHomologousProtFillters,
 ):
     """
-    Run jackhmmer on the full proteome
-    ref_proteome_path: Path to the reference proteome file
-        A gzipped fasta file containing the sequences to search. Query.
-    db_f: Path to the database file
-        A gzipped fasta file containing the sequences to search against, make
+    Run jackhmmer on the full proteome, usually to find homologous proteins
+    for a set of query proteins.
+    The query proteins are split into groups, each group is searched
+    separately to reduce memory usage.
+    The results are concatenated into a single domtblout file.
+    query_fasta_path: Path to the query fasta file
+        A (gzipped) fasta file containing the sequences to search. Query.
+    target_fasta_path: Path to the database file
+        A (gzipped) fasta file containing the sequences to search against, make
         sure there is no duplicated headers in this file
     domtblout_path: Path to the output file
         Format is --domtblout, it is concatenated from each group searches.
@@ -199,17 +203,10 @@ def full_proteome_jackhmmer(
     output_handle.close()
 
 
-def filter_domtblout(
-    domtbl_df: pd.DataFrame, include_ali_coords: list[tuple[int, int]] = []
-):
-    """ """
-    pass
-
-
-def cal_cov(
+def calculate_domain_coverage(
     line: dict,
     dom_cov_regions: list[int],
-    hmmer_filters: BaseHmmerTblFilters = HmmerHomologousProtConfig,
+    hmmer_filters: BaseHmmerTblFilters = BaseHmmerTblFilters(),
 ):
     """
     Run within each single protein lines
@@ -360,8 +357,8 @@ def parse_dom_table_mt(
         }
 
         for row in domtbl_q:
-            is_end_dom, dom_cov_regions, dom_covq, dom_covt = cal_cov(
-                row, dom_cov_regions
+            is_end_dom, dom_cov_regions, dom_covq, dom_covt = (
+                calculate_domain_coverage(row, dom_cov_regions)
             )
             if is_end_dom:
                 if (

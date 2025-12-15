@@ -28,7 +28,7 @@ class BaseHmmerTblFilters:
     LEN_DIFF: float = float("inf")  # diff / min(qlen, tlen)
 
 
-HmmerHomologousProtConfig = BaseHmmerTblFilters(
+HmmerHomologousProtFillters = BaseHmmerTblFilters(
     T_E=1e-5,
     T_INCE=1e-10,
     T_DOME=1e-5,
