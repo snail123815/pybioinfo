@@ -158,11 +158,9 @@ def full_proteome_jackhmmer(
         Format is --domtblout, it is concatenated from each group searches.
         Please do exclude # lines in the middle when parsing.
     """
-    query_seqs = list(
-        SeqIO.parse(
-            decompFileIfCompressed(query_fasta_path, to_temp=True)[0], "fasta"
-        )
-    )
+    query_temp = decompFileIfCompressed(query_fasta_path, to_temp=True)[0]
+    with open(query_temp, "rt") as qh:
+        query_seqs = list(SeqIO.parse(qh, "fasta"))
     output_handle = domtblout_path.open("wt")
     header_written = False
     last_header_skipped = False

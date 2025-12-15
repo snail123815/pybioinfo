@@ -1,0 +1,17 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+WP_011039340.1       -            320 WP_011026846.1       -            279  7.9e-155  508.3  11.0   1   1    1e-156  9.4e-155  508.1  11.0     3   274     2   270     1   275 0.99 -
+WP_011039340.1       -            320 WP_011026846.1       -            279  7.9e-155  508.3  11.0   1   1    1e-156  9.4e-155  508.1  11.0     3   274     2   270     1   275 0.99 -
+WP_011039382.1       -            281 WP_011026846.1       -            279  1.3e-149  491.2  13.2   1   1  1.8e-151  1.7e-149  490.9  13.2     2   276     5   278     4   280 0.99 -
+WP_319152263.1       -            296 WP_011026846.1       -            279   6.2e-37  121.6  11.8   1   1     1e-36   9.1e-35  114.5  11.8    10   259     5   285     3   295 0.65 -
+#
+# Program:         jackhmmer
+# Version:         3.4 (Aug 2023)
+# Pipeline mode:   SEARCH
+# Query file:      M145_targets_2_2.faa
+# Target file:     scp1.faa
+# Option settings: jackhmmer --domtblout jackhmmer_test_split2-2.domtblout --cpu 16 M145_targets_2_2.faa scp1.faa 
+# Current dir:     /home/duc
+# Date:            Mon Dec 15 23:19:30 2025
+# [ok]

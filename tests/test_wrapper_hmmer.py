@@ -1,10 +1,14 @@
 import subprocess
+import tempfile
 import unittest
 from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from pyBioinfo_modules.wrappers.hmmer import run_jackhmmer
+from pyBioinfo_modules.wrappers.hmmer import (
+    full_proteome_jackhmmer,
+    run_jackhmmer,
+)
 from pyBioinfo_modules.wrappers.hmmer_config import (
     BaseHmmerTblFilters,
     HmmerHomologousProtFillters,
@@ -16,8 +20,8 @@ class TestRunJackhmmer(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.test_data_dir = Path(__file__).parent / "test_data"
-        self.query_fasta = self.test_data_dir / "scp1_5prots.faa"
+        self.test_data_dir = Path(__file__).parent / "test_data" / "hmmer"
+        self.query_fasta = self.test_data_dir / "queries.faa"
         self.target_fasta = self.test_data_dir / "scp1.faa"
         self.output_path = Path("/tmp/test_output.domtblout")
 
@@ -168,6 +172,87 @@ class TestRunJackhmmer(unittest.TestCase):
 
         # Verify result
         self.assertEqual(result, 1)
+
+
+class TestFullProteomeJackhmmer(unittest.TestCase):
+    """Test batching and merge behavior of full_proteome_jackhmmer."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.hmmer_dir = Path(__file__).parent / "test_data" / "hmmer"
+        self.query_fasta = self.hmmer_dir / "queries.faa"
+        self.target_fasta = self.hmmer_dir / "scp1.faa"
+
+    @patch("pyBioinfo_modules.wrappers.hmmer.run_jackhmmer")
+    def test_split_by_two_merges_three_chunks(self, mock_run):
+        """Split queries into groups of 2 and merge three domtbl chunks."""
+
+        fixtures = [
+            self.hmmer_dir / "jackhmmer_test_split2-1.domtblout",
+            self.hmmer_dir / "jackhmmer_test_split2-2.domtblout",
+            self.hmmer_dir / "jackhmmer_test_split2-3.domtblout",
+        ]
+
+        def fake_run(group_io, target, domtblout_path, jackhmmer_cfg, cpus):
+            fixture_path = fixtures.pop(0)
+            domtblout_path.write_text(fixture_path.read_text())
+            return 1
+
+        mock_run.side_effect = fake_run
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
+            out_path = Path(tmp_out.name)
+        try:
+            full_proteome_jackhmmer(
+                self.query_fasta,
+                self.target_fasta,
+                out_path,
+                prots_per_group=2,
+                cpus=2,
+            )
+
+            self.assertEqual(mock_run.call_count, 3)
+
+            merged = out_path.read_text()
+            expected = (self.hmmer_dir / "merged_split2.domtblout").read_text()
+            self.assertEqual(merged, expected)
+        finally:
+            out_path.unlink(missing_ok=True)
+
+    @patch("pyBioinfo_modules.wrappers.hmmer.run_jackhmmer")
+    def test_split_by_four_merges_two_chunks(self, mock_run):
+        """Split queries into groups of 4 and merge two domtbl chunks."""
+
+        fixtures = [
+            self.hmmer_dir / "jackhmmer_test_split4-1.domtblout",
+            self.hmmer_dir / "jackhmmer_test_split4-2.domtblout",
+        ]
+
+        def fake_run(group_io, target, domtblout_path, jackhmmer_cfg, cpus):
+            fixture_path = fixtures.pop(0)
+            domtblout_path.write_text(fixture_path.read_text())
+            return 1
+
+        mock_run.side_effect = fake_run
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_out:
+            out_path = Path(tmp_out.name)
+        try:
+            full_proteome_jackhmmer(
+                self.query_fasta,
+                self.target_fasta,
+                out_path,
+                prots_per_group=4,
+                cpus=2,
+            )
+
+            self.assertEqual(mock_run.call_count, 2)
+
+            merged = out_path.read_text()
+            expected = (self.hmmer_dir / "merged_split4.domtblout").read_text()
+            self.assertEqual(merged, expected)
+        finally:
+            out_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
