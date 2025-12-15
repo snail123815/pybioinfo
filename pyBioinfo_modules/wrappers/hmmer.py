@@ -91,55 +91,6 @@ def _find_break_point(target: str, ref_proteome_p: Path):
     return next_seek_loc
 
 
-def run_jackhmmer_full_proteome(
-    query_proteome_path,
-    db_f,
-    domtblout_path,
-    ref_next_loc=0,
-    cpus=8,
-    hhpc: BaseHmmerConfig = HmmerHomologousProtConfig(),
-):
-    """
-    deprecated
-    Run jackhmmer on the full proteome
-    ref_proteome_path: Path to the reference proteome file
-        A gzipped fasta file containing the sequences to search. Query.
-    db_f: Path to the database file
-        A gzipped fasta file containing the sequences to search against, make
-        sure there is no duplicated headers in this file
-    domtblout_path: Path to the output file
-        Format is --domtblout
-    ref_next_loc: int
-        The location to start from in the reference proteome file, will be
-        "seeked" to this location to start. This is used to resume the search
-        if it was interrupted.
-
-        Example: _find_break_point(">sp|P0A7D3|ARGH_ECOLI", "protein.faa.gz")
-    TODO this needs to be prevented in the future, split input into pieces then
-    perform the search.
-    """
-
-    with gzip.open(query_proteome_path, "rt") as ref:
-        ref.seek(ref_next_loc)
-        jackhmmer_run = subprocess.run(
-            (
-                f"jackhmmer -E {str(hhpc.T_E)} "
-                f"--incE {str(hhpc.T_INCE)} "
-                f"--domE {str(hhpc.T_DOME)} "
-                f"--incdomE {str(hhpc.T_INCDOME)} "
-                f"--cpu {str(cpus)} "
-                f"--domtblout {domtblout_path} "
-                f"- {db_f} 1>/dev/null"
-            ),
-            input=ref.read().encode(),
-            shell=True,
-            capture_output=True,
-        )
-
-    if jackhmmer_run.returncode != 0:
-        print(jackhmmer_run.stderr.decode())
-
-
 def run_jackhmmer(
     query_fasta: Path | StringIO,
     target_fasta_path: Path,
