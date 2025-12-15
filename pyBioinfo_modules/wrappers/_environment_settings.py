@@ -51,7 +51,7 @@ def withActivateEnvCmd(
             activateEnvCmd = f'eval "$(micromamba shell hook --shell={shell})"'
         else:
             activateEnvCmd = f'eval "$({condaExe} shell.{shell} hook)"'
-        activateEnvCmd += f" && micromamba activate {condaEnv}"
+        activateEnvCmd += f" && {condaExe} activate {condaEnv}"
         if isinstance(cmd, list):
             cmd = " ".join(cmd)
         cmd = activateEnvCmd + " && " + cmd
