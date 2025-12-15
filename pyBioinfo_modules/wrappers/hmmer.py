@@ -323,48 +323,69 @@ def read_domtbl(
     return domtbl_df
 
 
-def process_single_query(
-    domtbl_q: list[OrderedDict],
+def parse_dom_table_mt(
+    domtbl_df,
+    cpus=8,
     hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
-):
-    qp = domtbl_q[0]["qp"]
-    dom_cov_regions = []
-    match_dict = {
-        "Query": [],
-        "Target strain": [],
-        "Target protein": [],
-        "Coverage on Query": [],
-        "Coverage on Target": [],
-        "Expect protein": [],
-        "Target description": [],
-    }
-    for row in domtbl_q:
-        is_end_dom, dom_cov_regions, dom_covq, dom_covt = cal_cov(
-            row, dom_cov_regions
-        )
-        if is_end_dom:
-            if dom_covq < hhpc.GATHER_T_COV or dom_covt < hhpc.GATHER_T_COV:
+) -> pd.DataFrame:
+    """
+    Multi-threaded processing of domtbl DataFrame
+    hhpc: HmmerHomologousProtConfig, configuration for filtering
+    return: concatenated DataFrame of all results
+        Each row shows the result of a single query protein, with coverage
+        on both query and target, and other information.
+    """
+
+    def _process_single_qp(
+        domtbl_q: list[OrderedDict],  # Gathered hits of a single query protein
+    ):
+        """
+        Process hits of a single query protein, will calculate coverage
+        and filter based on coverage thresholds.
+
+        domtbl_q: list of OrderedDict, each dict is a line from domtblout
+
+        Return: DataFrame of the processed results
+        """
+        # Get query protein id
+        qp = domtbl_q[0]["qp"]
+        # Initialize coverage regions and match dict
+        dom_cov_regions = []
+        match_dict = {
+            "Query": [],
+            "Target strain": [],
+            "Target protein": [],
+            "Coverage on Query": [],
+            "Coverage on Target": [],
+            "Expect protein": [],
+            "Target description": [],
+        }
+
+        for row in domtbl_q:
+            is_end_dom, dom_cov_regions, dom_covq, dom_covt = cal_cov(
+                row, dom_cov_regions
+            )
+            if is_end_dom:
+                if dom_covq < hhpc.GATHER_T_COV or dom_covt < hhpc.GATHER_T_COV:
+                    continue
+                dom_cov_regions = []
+            else:
                 continue
-            dom_cov_regions = []
-        else:
-            continue
 
-        target_strain = row["tp"].split("_")[0]
-        target_protein = row["tp"][len(target_strain) + 1 :]
-        match_dict["Query"].append(qp)
-        match_dict["Target strain"].append(target_strain)
-        match_dict["Target protein"].append(target_protein)
-        match_dict["Coverage on Query"].append(dom_covq)
-        match_dict["Coverage on Target"].append(dom_covt)
-        match_dict["Expect protein"].append(row["full_E"])
-        match_dict["Target description"].append(
-            row["anno"].replace(target_protein, "").strip()
-        )
-    return pd.DataFrame(match_dict)
+            target_strain = row["tp"].split("_")[0]
+            target_protein = row["tp"][len(target_strain) + 1 :]
+            match_dict["Query"].append(qp)
+            match_dict["Target strain"].append(target_strain)
+            match_dict["Target protein"].append(target_protein)
+            match_dict["Coverage on Query"].append(dom_covq)
+            match_dict["Coverage on Target"].append(dom_covt)
+            match_dict["Expect protein"].append(row["full_E"])
+            match_dict["Target description"].append(
+                row["anno"].replace(target_protein, "").strip()
+            )
+        return pd.DataFrame(match_dict)
 
-
-def parse_dom_table_mt(domtbl_df, cpus=8):
-    previous_qp = ""
+    previous_qp = ""  # To group by query protein
     domtbl_q: list[OrderedDict] = []
     with ProcessPoolExecutor(cpus) as executer:
         futures = []
@@ -377,17 +398,17 @@ def parse_dom_table_mt(domtbl_df, cpus=8):
             if domrow.qp == previous_qp:
                 domtbl_q.append(dom_dict)
             else:
-                # submit previous one
+                # This is next qp, now submit previous one
                 if len(domtbl_q) > 0:
                     futures.append(
-                        executer.submit(process_single_query, domtbl_q)
+                        executer.submit(_process_single_qp, domtbl_q)
                     )
                 # empty q
                 domtbl_q = [dom_dict]
                 previous_qp = domrow.qp
-        # submit the last one
+        # submit the last qp
         if len(domtbl_q) > 0:
-            futures.append(executer.submit(process_single_query, domtbl_q))
+            futures.append(executer.submit(_process_single_qp, domtbl_q))
         results = []
         for future in tqdm(futures, desc="Processing per protein hits"):
             results.append(future.result())
