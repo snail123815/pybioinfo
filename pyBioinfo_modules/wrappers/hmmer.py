@@ -22,7 +22,7 @@ from pyBioinfo_modules.wrappers._environment_settings import (
     withActivateEnvCmd,
 )
 from pyBioinfo_modules.wrappers.hmmer_config import (
-    BaseHmmerConfig,
+    BaseHmmerTblFilters,
     HmmerHomologousProtConfig,
 )
 
@@ -95,7 +95,7 @@ def run_jackhmmer(
     query_fasta: Path | StringIO,
     target_fasta_path: Path,
     domtblout_path: Path,
-    jackhmmer_cfg: BaseHmmerConfig = BaseHmmerConfig(),
+    jackhmmer_cfg: BaseHmmerTblFilters = BaseHmmerTblFilters(),
     cpus: int = 8,
 ):
     # Write sequences from query_fasta to an in-memory text stream using StringIO
@@ -142,7 +142,7 @@ def full_proteome_jackhmmer(
     domtblout_path,
     prots_per_group=10,
     cpus=8,
-    hhpc: BaseHmmerConfig = HmmerHomologousProtConfig(),
+    hmmer_filters: BaseHmmerTblFilters = HmmerHomologousProtConfig,
 ):
     """
     Run jackhmmer on the full proteome
@@ -173,7 +173,7 @@ def full_proteome_jackhmmer(
             group_seqs_io,
             target_fasta_path,
             Path(group_seqs_out.name),
-            jackhmmer_cfg=hhpc,
+            jackhmmer_cfg=hmmer_filters,
             cpus=cpus,
         )
         with open(group_seqs_out.name, "rt") as group_seqs_in:
@@ -209,7 +209,7 @@ def filter_domtblout(
 def cal_cov(
     line: dict,
     dom_cov_regions: list[int],
-    hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
+    hmmer_filters: BaseHmmerTblFilters = HmmerHomologousProtConfig,
 ):
     """
     Run within each single protein lines
@@ -223,14 +223,14 @@ def cal_cov(
     is_end_dom = False
     if line["dom_total"] == 1:  # Single domain
         is_end_dom = True
-        if line["dom_i_E"] <= hhpc.GATHER_T_DOME:
+        if line["dom_i_E"] <= hmmer_filters.GATHER_T_DOME:
             cov_len = line["ali_to"] - line["ali_from"] + 1
             dom_covq = cov_len / line["qlen"]
             dom_covt = cov_len / line["tlen"]
     else:  # multi domains
         # if line['dom_n'] == 1:  # first multi domain
         #     dom_cov_regions = []
-        if line["dom_i_E"] <= hhpc.GATHER_T_DOME:
+        if line["dom_i_E"] <= hmmer_filters.GATHER_T_DOME:
             dom_cov_regions.extend(
                 list(range(line["ali_from"], line["ali_to"] + 1))
             )
@@ -254,40 +254,9 @@ def remove_duplicates(file_p: Path) -> Path:
 
 def read_domtbl(
     domtbl_p: Path,
-    hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
+    hmmer_filters: BaseHmmerTblFilters = BaseHmmerTblFilters(),
+    domtbl_splitter=re.compile(r" +"),  # Split by spaces
 ) -> pd.DataFrame:
-    def parse_one_line(
-        l,
-        domtbl_dict,
-        t_e=hhpc.GATHER_T_E,
-        len_diff=hhpc.LEN_DIFF,
-        splitter=re.compile(r" +"),
-    ):
-        line_list = splitter.split(l.strip())
-
-        full_E = float(line_list[6])
-        if full_E > t_e:
-            return
-        else:
-            tlen = int(line_list[2])
-            qlen = int(line_list[5])
-            if abs(tlen - qlen) / min(tlen, qlen) > len_diff:
-                return
-            try:
-                domtbl_dict["tp"].append(line_list[0])
-                domtbl_dict["qp"].append(line_list[3])
-                domtbl_dict["tlen"].append(tlen)
-                domtbl_dict["qlen"].append(qlen)
-                domtbl_dict["ali_from"].append(int(line_list[17]))
-                domtbl_dict["ali_to"].append(int(line_list[18]))
-                domtbl_dict["dom_i_E"].append(float(line_list[12]))
-                domtbl_dict["dom_n"].append(int(line_list[9]))
-                domtbl_dict["dom_total"].append(int(line_list[10]))
-                domtbl_dict["full_E"].append(full_E)
-                domtbl_dict["anno"].append(" ".join(line_list[22:]))
-            except ValueError as ve:
-                print(l)
-                raise ve
 
     print(f"Counting lines in domtblout from jackhmmer: {domtbl_p}")
     domtbl_len = int(
@@ -296,6 +265,8 @@ def read_domtbl(
         .split(" ")[0]
     )
     print(f"{domtbl_len} lines in total.")
+
+    # Initialize domtbl_dict with header keys
     domtbl_dict = {}
     header = [
         "tp",
@@ -312,11 +283,38 @@ def read_domtbl(
     ]
     for h in header:
         domtbl_dict[h] = []
+
+    t_e = hmmer_filters.GATHER_T_E
+    len_diff = hmmer_filters.LEN_DIFF
     with domtbl_p.open("rt") as dt:
         for l in tqdm(dt, desc="Reading file", total=domtbl_len):
             if l.startswith("#"):
                 continue
-            parse_one_line(l, domtbl_dict)
+            line_list = domtbl_splitter.split(l.strip())
+
+            full_E = float(line_list[6])
+            if full_E > t_e:
+                continue
+            else:
+                tlen = int(line_list[2])
+                qlen = int(line_list[5])
+                if abs(tlen - qlen) / min(tlen, qlen) > len_diff:
+                    continue
+                try:
+                    domtbl_dict["tp"].append(line_list[0])
+                    domtbl_dict["qp"].append(line_list[3])
+                    domtbl_dict["tlen"].append(tlen)
+                    domtbl_dict["qlen"].append(qlen)
+                    domtbl_dict["ali_from"].append(int(line_list[17]))
+                    domtbl_dict["ali_to"].append(int(line_list[18]))
+                    domtbl_dict["dom_i_E"].append(float(line_list[12]))
+                    domtbl_dict["dom_n"].append(int(line_list[9]))
+                    domtbl_dict["dom_total"].append(int(line_list[10]))
+                    domtbl_dict["full_E"].append(full_E)
+                    domtbl_dict["anno"].append(" ".join(line_list[22:]))
+                except ValueError as ve:
+                    print(l)
+                    raise ve
     print("Converting data to dataframe...", end="")
     domtbl_df = pd.DataFrame(domtbl_dict)
     print("Done.")
@@ -326,11 +324,11 @@ def read_domtbl(
 def parse_dom_table_mt(
     domtbl_df,
     cpus=8,
-    hhpc: HmmerHomologousProtConfig = HmmerHomologousProtConfig(),
+    hmmer_filters: BaseHmmerTblFilters = BaseHmmerTblFilters(),
 ) -> pd.DataFrame:
     """
     Multi-threaded processing of domtbl DataFrame
-    hhpc: HmmerHomologousProtConfig, configuration for filtering
+    hmmer_filter_config: BaseHmmerTblFilters, configuration for filtering
     return: concatenated DataFrame of all results
         Each row shows the result of a single query protein, with coverage
         on both query and target, and other information.
@@ -366,7 +364,10 @@ def parse_dom_table_mt(
                 row, dom_cov_regions
             )
             if is_end_dom:
-                if dom_covq < hhpc.GATHER_T_COV or dom_covt < hhpc.GATHER_T_COV:
+                if (
+                    dom_covq < hmmer_filters.GATHER_T_COV
+                    or dom_covt < hmmer_filters.GATHER_T_COV
+                ):
                     continue
                 dom_cov_regions = []
             else:

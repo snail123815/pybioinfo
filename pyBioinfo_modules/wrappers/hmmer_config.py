@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class BaseHmmerConfig:
+class BaseHmmerTblFilters:
     """
     Default configuration for HMMER tools.
     """
@@ -13,29 +13,33 @@ class BaseHmmerConfig:
     T_INCDOME: float = (
         0.001  # --incdomE, consider domains <= incdomE as *significance*
     )
-
-
-@dataclass
-class HmmerHomologousProtConfig(BaseHmmerConfig):
-    """
-    hhpc = Hmmer Homologous Proteins search Config
-    Configuration for homologous protein search using HMMER.
-    """
-
-    T_E: float = 1e-5
-    T_INCE: float = 1e-10
-    T_DOME: float = 1e-5
-    T_INCDOME: float = 1e-10
-    MIN_PROTEIN_LEN: int = 60
+    MIN_PROTEIN_LEN: int = 0
     GATHER_T_E: float = (
-        1e-10
+        10
         # Domtbl filter, on column 7:
         # E-value of the overall sequence/profile comparison (including all domains)
     )
     GATHER_T_DOME: float = (
-        1e-20
+        1
         # Used in cal_cov(), coverage calculation
         # Only domE <= this value will be considered
     )
-    GATHER_T_COV: float = 0.7  # Coverage of both query and target
-    LEN_DIFF: float = 0.2  # diff / min(qlen, tlen)
+    GATHER_T_COV: float = 0.0  # Coverage of both query and target
+    LEN_DIFF: float = float("inf")  # diff / min(qlen, tlen)
+
+
+HmmerHomologousProtConfig = BaseHmmerTblFilters(
+    T_E=1e-5,
+    T_INCE=1e-10,
+    T_DOME=1e-5,
+    T_INCDOME=1e-10,
+    MIN_PROTEIN_LEN=60,
+    GATHER_T_E=1e-10,
+    # Domtbl filter, on column 7:
+    # E-value of the overall sequence/profile comparison (including all domains)
+    GATHER_T_DOME=1e-20,
+    # Used in cal_cov(), coverage calculation
+    # Only domE <= this value will be considered
+    GATHER_T_COV=0.7,
+    LEN_DIFF=0.2,
+)
