@@ -102,9 +102,10 @@ def run_jackhmmer(
     # Alternatively, if you already have SeqRecord objects, use them directly.
     if isinstance(query_fasta, Path):
         query_fasta = decompFileIfCompressed(query_fasta, to_temp=True)[0]
-        query_input = open(query_fasta, "rt")
+        with open(query_fasta, "rt") as f:
+            query_content = f.read()
     else:
-        query_input = query_fasta
+        query_content = query_fasta.read()
 
     jackhmmer_cmd = (
         "jackhmmer"
@@ -117,7 +118,7 @@ def run_jackhmmer(
 
     jackhmmer_run = subprocess.run(
         withActivateEnvCmd(jackhmmer_cmd, HMMER_ENV),
-        input=query_input.read().encode("utf-8"),
+        input=query_content.encode("utf-8"),
         shell=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
