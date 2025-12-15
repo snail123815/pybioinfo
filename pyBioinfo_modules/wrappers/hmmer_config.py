@@ -17,6 +17,11 @@ class BaseHmmerConfig:
 
 @dataclass
 class HmmerHomologousProtConfig(BaseHmmerConfig):
+    """
+    hhpc = Hmmer Homologous Proteins search Config
+    Configuration for homologous protein search using HMMER.
+    """
+
     T_E: float = 1e-5
     T_INCE: float = 1e-10
     T_DOME: float = 1e-5
