@@ -221,7 +221,7 @@ def full_proteome_jackhmmer(
         run_jackhmmer(
             group_seqs_io,
             target_fasta_path,
-            group_seqs_out.name,
+            Path(group_seqs_out.name),
             jackhmmer_cfg=hhpc,
             cpus=cpus,
         )
@@ -414,7 +414,7 @@ def process_single_query(
 
 def parse_dom_table_mt(domtbl_df, cpus=8):
     previous_qp = ""
-    domtbl_q: list[namedtuple] = []
+    domtbl_q: list[OrderedDict] = []
     with ProcessPoolExecutor(cpus) as executer:
         futures = []
         for domrow in tqdm(
