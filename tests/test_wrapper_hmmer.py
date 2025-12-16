@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pyBioinfo_modules.wrappers.hmmer import (
+    calculate_domain_coverage,
     full_proteome_jackhmmer,
     run_jackhmmer,
 )
@@ -253,6 +254,123 @@ class TestFullProteomeJackhmmer(unittest.TestCase):
             self.assertEqual(merged, expected)
         finally:
             out_path.unlink(missing_ok=True)
+
+
+class TestCalculateDomainCoverage(unittest.TestCase):
+    """Test calculate_domain_coverage function."""
+
+    def setUp(self):
+        self.hmmer_filters = BaseHmmerTblFilters()
+
+    def test_single_domain_above_threshold(self):
+        """Test single domain with E-value above threshold (passes filter)."""
+        line = {
+            "dom_total": 1,
+            "dom_i_E": 1e-20,
+            "ali_from": 50,
+            "ali_to": 100,
+            "qlen": 200,
+            "tlen": 150,
+            "dom_n": 1,
+        }
+        expected_is_end = True
+        expected_locations = list(range(50, 101))
+        expected_covq = 51 / 200  # (100 - 50 + 1) / 200 = 0.255
+        expected_covt = 51 / 150  # (100 - 50 + 1) / 150 = 0.34
+
+        is_end, locations, covq, covt = calculate_domain_coverage(
+            line, [], self.hmmer_filters
+        )
+
+        self.assertEqual(is_end, expected_is_end)
+        self.assertEqual(locations, expected_locations)
+        self.assertAlmostEqual(covq, expected_covq)
+        self.assertAlmostEqual(covt, expected_covt)
+
+    def test_single_domain_below_threshold(self):
+        """Test single domain with E-value below threshold (fails filter)."""
+        line = {
+            "dom_total": 1,
+            "dom_i_E": 1.1,  # GATHER_T_DOME is 1 in BaseHmmerTblFilters()
+            "ali_from": 50,
+            "ali_to": 100,
+            "qlen": 200,
+            "tlen": 150,
+            "dom_n": 1,
+        }
+        expected_is_end = True
+        expected_locations = []
+        expected_covq = 0.0
+        expected_covt = 0.0
+
+        is_end, locations, covq, covt = calculate_domain_coverage(
+            line, [], self.hmmer_filters
+        )
+
+        self.assertEqual(is_end, expected_is_end)
+        self.assertEqual(locations, expected_locations)
+        self.assertEqual(covq, expected_covq)
+        self.assertEqual(covt, expected_covt)
+
+    def test_multiple_domains(self):
+        """Test multiple domains with varying E-values."""
+        # Domain 1: dom_total=3, dom_n=1, dom_i_E=1.1 (fails filter, E > 1)
+        line1 = {
+            "dom_total": 3,
+            "dom_i_E": 1.1,
+            "ali_from": 10,
+            "ali_to": 50,
+            "qlen": 300,
+            "tlen": 250,
+            "dom_n": 1,
+        }
+        is_end1, locations1, covq1, covt1 = calculate_domain_coverage(
+            line1, [], self.hmmer_filters
+        )
+        self.assertFalse(is_end1)
+        self.assertEqual(locations1, [])
+        self.assertEqual(covq1, 0.0)
+        self.assertEqual(covt1, 0.0)
+
+        # Domain 2: dom_total=3, dom_n=2, dom_i_E=0.2 (passes filter, E <= 1)
+        line2 = {
+            "dom_total": 3,
+            "dom_i_E": 0.2,
+            "ali_from": 60,
+            "ali_to": 100,
+            "qlen": 300,
+            "tlen": 250,
+            "dom_n": 2,
+        }
+        is_end2, locations2, covq2, covt2 = calculate_domain_coverage(
+            line2, locations1, self.hmmer_filters
+        )
+        self.assertFalse(is_end2)
+        self.assertEqual(locations2, list(range(60, 101)))
+        self.assertEqual(covq2, 0.0)
+        self.assertEqual(covt2, 0.0)
+
+        # Domain 3: dom_total=3, dom_n=3, dom_i_E=0.1 (passes filter, is last domain)
+        line3 = {
+            "dom_total": 3,
+            "dom_i_E": 0.1,
+            "ali_from": 90,
+            "ali_to": 180,
+            "qlen": 300,
+            "tlen": 250,
+            "dom_n": 3,
+        }
+        is_end3, locations3, covq3, covt3 = calculate_domain_coverage(
+            line3, locations2, self.hmmer_filters
+        )
+        self.assertTrue(is_end3)
+        # Combined locations from domain 2 and 3: 60-100 (41 positions) + 90-180 (91 positions)
+        expected_locations3 = list(range(60, 101)) + list(range(90, 181))
+        self.assertEqual(locations3, expected_locations3)
+        # Coverage: 121 unique positions / 300 query length
+        self.assertAlmostEqual(covq3, 121 / 300)
+        # Coverage: 121 unique positions / 250 target length
+        self.assertAlmostEqual(covt3, 121 / 250)
 
 
 if __name__ == "__main__":
