@@ -255,16 +255,6 @@ def calculate_domain_coverage(
     return is_end_dom, dom_locations, dom_covq, dom_covt
 
 
-def remove_duplicates(file_p: Path) -> Path:
-    no_dup_path = file_p.parent / f"{file_p.stem}_nodup{file_p.suffix}"
-    logger.info(f"Removing duplicates from file {file_p} -> {no_dup_path}")
-    ddup = subprocess.run(
-        f"awk '!seen[$0]++' {file_p} > {no_dup_path}", shell=True
-    )
-    ddup.check_returncode()
-    return no_dup_path
-
-
 def read_domtbl(
     domtbl_p: Path,
     hmmer_filters: BaseHmmerTblFilters = BaseHmmerTblFilters(),
@@ -278,6 +268,14 @@ def read_domtbl(
     domtbl_splitter: regex pattern to split the domtblout lines
     return: pd.DataFrame, domtbl DataFrame
     """
+
+    no_dup_domtbl = NamedTemporaryFile(delete=False)
+    logger.info(f"Removing duplicates from file {domtbl_p}")
+    ddup = subprocess.run(
+        f"awk '!seen[$0]++' {domtbl_p} > {no_dup_domtbl.name}", shell=True
+    )
+    ddup.check_returncode()
+    domtbl_p = Path(no_dup_domtbl.name)
 
     logger.info(f"Counting lines in domtblout from jackhmmer: {domtbl_p}")
     domtbl_len = int(
@@ -343,8 +341,61 @@ def read_domtbl(
                     raise ve
     logger.info("Converting data to dataframe...")
     domtbl_df = pd.DataFrame(domtbl_dict)
+    no_dup_domtbl.close()
     logger.info("Done.")
     return domtbl_df
+
+
+def _process_single_qp(
+    domtbl_q: list[OrderedDict],  # Gathered hits of a single query protein
+    hmmer_filters: BaseHmmerTblFilters,
+):
+    """
+    Process hits of a single query protein, will calculate coverage
+    and filter based on coverage thresholds.
+
+
+    domtbl_q: list of OrderedDict, each dict is a line from domtblout
+    hmmer_filters: BaseHmmerTblFilters, configuration for filtering
+
+    Return: DataFrame of the processed results
+    """
+    # Get query protein id
+    qp = domtbl_q[0]["qp"]
+    # Initialize coverage regions and match dict
+    dom_cov_regions = []
+    match_dict = {
+        "Query": [],
+        "Target protein": [],
+        "Coverage on Query": [],
+        "Coverage on Target": [],
+        "Expect protein": [],
+        "Target description": [],
+    }
+
+    for row in domtbl_q:
+        is_end_dom, dom_cov_regions, dom_covq, dom_covt = (
+            calculate_domain_coverage(row, dom_cov_regions, hmmer_filters)
+        )
+        if is_end_dom:
+            if (
+                dom_covq < hmmer_filters.GATHER_T_COV
+                or dom_covt < hmmer_filters.GATHER_T_COV
+            ):
+                continue
+            dom_cov_regions = []
+        else:
+            continue
+
+        match_dict["Query"].append(qp)
+        match_dict["Target protein"].append(row["tp"])
+        match_dict["Coverage on Query"].append(dom_covq)
+        match_dict["Coverage on Target"].append(dom_covt)
+        match_dict["Expect protein"].append(row["full_E"])
+        match_dict["Target description"].append(
+            row["anno"].replace(row["tp"], "").strip()
+        )
+    return pd.DataFrame(match_dict)
 
 
 def parse_dom_table_mt(
@@ -364,58 +415,6 @@ def parse_dom_table_mt(
         on both query and target, and other information.
     """
 
-    def _process_single_qp(
-        domtbl_q: list[OrderedDict],  # Gathered hits of a single query protein
-    ):
-        """
-        Process hits of a single query protein, will calculate coverage
-        and filter based on coverage thresholds.
-
-        domtbl_q: list of OrderedDict, each dict is a line from domtblout
-
-        Return: DataFrame of the processed results
-        """
-        # Get query protein id
-        qp = domtbl_q[0]["qp"]
-        # Initialize coverage regions and match dict
-        dom_cov_regions = []
-        match_dict = {
-            "Query": [],
-            "Target strain": [],
-            "Target protein": [],
-            "Coverage on Query": [],
-            "Coverage on Target": [],
-            "Expect protein": [],
-            "Target description": [],
-        }
-
-        for row in domtbl_q:
-            is_end_dom, dom_cov_regions, dom_covq, dom_covt = (
-                calculate_domain_coverage(row, dom_cov_regions, hmmer_filters)
-            )
-            if is_end_dom:
-                if (
-                    dom_covq < hmmer_filters.GATHER_T_COV
-                    or dom_covt < hmmer_filters.GATHER_T_COV
-                ):
-                    continue
-                dom_cov_regions = []
-            else:
-                continue
-
-            target_strain = row["tp"].split("_")[0]
-            target_protein = row["tp"][len(target_strain) + 1 :]
-            match_dict["Query"].append(qp)
-            match_dict["Target strain"].append(target_strain)
-            match_dict["Target protein"].append(target_protein)
-            match_dict["Coverage on Query"].append(dom_covq)
-            match_dict["Coverage on Target"].append(dom_covt)
-            match_dict["Expect protein"].append(row["full_E"])
-            match_dict["Target description"].append(
-                row["anno"].replace(target_protein, "").strip()
-            )
-        return pd.DataFrame(match_dict)
-
     previous_qp = ""  # To group by query protein
     domtbl_q: list[OrderedDict] = []
     with ProcessPoolExecutor(cpus) as executer:
@@ -432,14 +431,18 @@ def parse_dom_table_mt(
                 # This is next qp, now submit previous one
                 if len(domtbl_q) > 0:
                     futures.append(
-                        executer.submit(_process_single_qp, domtbl_q)
+                        executer.submit(
+                            _process_single_qp, domtbl_q, hmmer_filters
+                        )
                     )
                 # empty q
                 domtbl_q = [dom_dict]
                 previous_qp = domrow.qp
         # submit the last qp
         if len(domtbl_q) > 0:
-            futures.append(executer.submit(_process_single_qp, domtbl_q))
+            futures.append(
+                executer.submit(_process_single_qp, domtbl_q, hmmer_filters)
+            )
         results = []
         for future in tqdm(futures, desc="Processing per protein hits"):
             results.append(future.result())

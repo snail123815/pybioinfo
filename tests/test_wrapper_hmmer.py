@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from pyBioinfo_modules.wrappers.hmmer import (
     calculate_domain_coverage,
     full_proteome_jackhmmer,
+    parse_dom_table_mt,
     read_domtbl,
     run_jackhmmer,
 )
@@ -393,7 +394,7 @@ class TestReadDomtbl(unittest.TestCase):
         line_count_logged = False
         for call in mock_logger.info.call_args_list:
             args, kwargs = call
-            if args and "13 lines in total" in str(args[0]):
+            if args and "10 lines in total" in str(args[0]):
                 line_count_logged = True
                 break
 
@@ -411,7 +412,7 @@ class TestReadDomtbl(unittest.TestCase):
         df = read_domtbl(self.domtbl_file, filters)
 
         # Number of lines pass the intermediate filters
-        self.assertEqual(df.shape[0], 4)
+        self.assertEqual(df.shape[0], 3)
 
         # Check that all expected columns are present
         expected_columns = [
@@ -429,6 +430,63 @@ class TestReadDomtbl(unittest.TestCase):
         ]
         for col in expected_columns:
             self.assertIn(col, df.columns)
+
+
+class TestParseDomTableMt(unittest.TestCase):
+    """Test parse_dom_table_mt function."""
+
+    def setUp(self):
+        self.hmmer_dir = Path(__file__).parent / "test_data" / "hmmer"
+        self.domtbl_file = self.hmmer_dir / "merged_split2.domtblout"
+
+    def test_parse_dom_table_mt_with_filters(self):
+        """Test parsing domtbl with specific filters."""
+        filters = BaseHmmerTblFilters(
+            T_E=1e-50,
+            LEN_DIFF=0.3,
+        )
+
+        # Read and filter the domtbl
+        df = read_domtbl(self.domtbl_file, filters)
+        self.assertEqual(len(df), 3)  # Should have 4 rows after filtering
+
+        # Parse the domtbl
+        result = parse_dom_table_mt(df, cpus=2, hmmer_filters=filters)
+
+        # Check number of results
+        self.assertEqual(len(result), 3)
+
+        # Check expected columns
+        expected_columns = [
+            "Query",
+            "Target protein",
+            "Coverage on Query",
+            "Coverage on Target",
+            "Expect protein",
+            "Target description",
+        ]
+        for col in expected_columns:
+            self.assertIn(col, result.columns)
+
+        # Check unique queries
+        unique_queries = result["Query"].unique()
+        self.assertEqual(len(unique_queries), 2)
+        self.assertIn("WP_011026846.1", unique_queries)
+        self.assertIn("WP_011029008.1", unique_queries)
+
+        # Check coverage values are between 0 and 1
+        self.assertTrue((result["Coverage on Query"] >= 0).all())
+        self.assertTrue((result["Coverage on Query"] <= 1).all())
+        self.assertTrue((result["Coverage on Target"] >= 0).all())
+        self.assertTrue((result["Coverage on Target"] <= 1).all())
+
+        # Check specific row for WP_011029008.1 (self-match with 100% coverage)
+        self_match = result[result["Query"] == "WP_011029008.1"]
+        self.assertEqual(len(self_match), 1)
+        self.assertEqual(self_match.iloc[0]["Target protein"], "WP_011029008.1")
+        self.assertAlmostEqual(self_match.iloc[0]["Coverage on Query"], 1.0)
+        self.assertAlmostEqual(self_match.iloc[0]["Coverage on Target"], 1.0)
+        self.assertEqual(self_match.iloc[0]["Expect protein"], 0.0)
 
 
 if __name__ == "__main__":
