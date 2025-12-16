@@ -1,16 +1,22 @@
-# Process phmmer result - to make a phylogentic tree
+# Tree for all homologues protein
 
-## Why
+Make a tree for homologues proteins found by `phmmer` from a defined database. (Use sensitive if comprehensiveness is needed)
 
-`phmmer` provide multiple options but output table is not well under control. For example:
+## Challanges
 
-I want to find, based on the hmm sequence similarity algorithm, all homologous proteins of ProtA on UniProt Reference Proteomes database. Do a search on https://www.ebi.ac.uk/Tools/hmmer/search/phmmer resulted in many hits, a lot of may have multiple motif or part of the query sequence matched, each matched part will have a good score (very low E-value).
-
-However, the goal is to find good homologous protein, which represents and only represents the query protein. Threre may be a possiblity to elimiate partial hits by playing with difference "sequence" and "Hit" E-values, or bit scores. But I don't think it is valid and easy way.
+1. `phmmer` output domain hits only, while homologous protein needs to be much more similar. A hit should represent and only represent the query protein.
+2. Output table is not clearly parseable.
+3. Using "sensitive" mode is essential, may result too many hits, or too slow. (`diamond blastp --ultra-sensitive`, `jackhmmer --max`)
 
 ## How
 
-From search result, download the JSON result file and the alignment fasta file (.afa).
+### HMMER web search
+
+(Not available now)
+
+From search result, download
+1. JSON result file
+2. alignment fasta file (.afa).
 
 Parse JSON file, find the hit domains, if this domain covers the presumed essential region, then keep the protein, else discard it.
 
@@ -18,15 +24,20 @@ After we have the selected protein list, keep the longest alignment from alignme
 
 For each tree node, add species information for easier interpration.
 
-## Depedencies
+### HMMER search
 
-```yml
-dependencies:
-  - numpy
-  - termplotlib
-  - biopython
-  - fasttree
+Use `-A <f> : save multiple alignment of hits to file <f>` to get alignment file. This is a `# STOCKHOLM 1.0` file, should name `*.stockholm`. This file cannot be used by `fasttree`, need to be converted to fasta file using:
+
+```sh
+esl-reformat afa a.stockholm > a.afa
+esl-reformat -o a.afa afa a.stockholm
+# Usage: esl-reformat [-options] <format> <seqfile>
+# afa for aligned fasta format
 ```
+
+Use `--max` for max sensitivity. The cost is too much, increase one digit to `--F1`, `--F2`, `--F3` default values can be an option if missing hits.
+
+Parse database or output header (e.g. `#` lines in stockholm file) for strain information if exists.
 
 ## How to use
 
@@ -36,8 +47,16 @@ TODO: add argument parse
 
 Change parameters:
 - `jsonFile`, `alignmentFasta` for input files
-- `tStart`, `tEnd` for start and end position of your target region on query protein sequence. One 'domain' of a 'hit' must cover full region.
+- `tStart`, `tEnd` for start and end position of your target region on query protein sequence. One 'domain' of a 'hit' must cover the selected region.
 - [not implemented]`eThresh` for threshold of the full 'hit', a valid 'hit' must have a 'evalue' lower than this value.
+
+Use `esl-alimask` - remove columns from a multiple sequence alignment, then to fasta, then make tree, depends on the needs.
+
+```
+esl-alimask -t [options] msafile coords
+(remove a contiguous set of columns at the start and end of an alignment)
+for example, 23..100, 23/100, or 23-100 all work
+```
 
 ### 2. FastTree
 

@@ -1,0 +1,14 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+WP_011029008.1       -            513 WP_011029008.1       -            513         0 1213.4  23.8   1   1         0         0 1213.3  23.8     1   513     1   513     1   513 1.00 -
+#
+# Program:         jackhmmer
+# Version:         3.4 (Aug 2023)
+# Pipeline mode:   SEARCH
+# Query file:      M145_targets_2_3.faa
+# Target file:     scp1.faa
+# Option settings: jackhmmer --domtblout jackhmmer_test_split2-3.domtblout --cpu 16 M145_targets_2_3.faa scp1.faa 
+# Current dir:     /home/duc
+# Date:            Mon Dec 15 23:19:37 2025
+# [ok]
