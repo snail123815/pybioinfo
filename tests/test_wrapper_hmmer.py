@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from pyBioinfo_modules.wrappers.hmmer import (
     calculate_domain_coverage,
     full_proteome_jackhmmer,
+    read_domtbl,
     run_jackhmmer,
 )
 from pyBioinfo_modules.wrappers.hmmer_config import (
@@ -371,6 +372,63 @@ class TestCalculateDomainCoverage(unittest.TestCase):
         self.assertAlmostEqual(covq3, 121 / 300)
         # Coverage: 121 unique positions / 250 target length
         self.assertAlmostEqual(covt3, 121 / 250)
+
+
+class TestReadDomtbl(unittest.TestCase):
+    """Test read_domtbl function."""
+
+    def setUp(self):
+        self.hmmer_dir = Path(__file__).parent / "test_data" / "hmmer"
+        self.domtbl_file = self.hmmer_dir / "merged_split2.domtblout"
+
+    @patch("pyBioinfo_modules.wrappers.hmmer.logger")
+    def test_read_domtbl_logs_line_count(self, mock_logger):
+        """Test that read_domtbl logs the correct line count."""
+        read_domtbl(self.domtbl_file, BaseHmmerTblFilters())
+
+        # Verify logger.info was called
+        self.assertTrue(mock_logger.info.called)
+
+        # Find the call that logs the line count
+        line_count_logged = False
+        for call in mock_logger.info.call_args_list:
+            args, kwargs = call
+            if args and "13 lines in total" in str(args[0]):
+                line_count_logged = True
+                break
+
+        self.assertTrue(
+            line_count_logged,
+            "Expected log message '13 lines in total' not found",
+        )
+
+    def test_read_domtbl_filters(self):
+        """Test reading domtbl file with default filters (no filtering)."""
+        filters = BaseHmmerTblFilters(
+            T_E=1e-50,
+            LEN_DIFF=0.3,
+        )
+        df = read_domtbl(self.domtbl_file, filters)
+
+        # Number of lines pass the intermediate filters
+        self.assertEqual(df.shape[0], 4)
+
+        # Check that all expected columns are present
+        expected_columns = [
+            "tp",
+            "qp",
+            "tlen",
+            "qlen",
+            "ali_from",
+            "ali_to",
+            "dom_i_E",
+            "dom_n",
+            "dom_total",
+            "full_E",
+            "anno",
+        ]
+        for col in expected_columns:
+            self.assertIn(col, df.columns)
 
 
 if __name__ == "__main__":

@@ -270,14 +270,24 @@ def read_domtbl(
     hmmer_filters: BaseHmmerTblFilters = BaseHmmerTblFilters(),
     domtbl_splitter=re.compile(r" +"),  # Split by spaces
 ) -> pd.DataFrame:
+    """
+    Read domtblout file from hmmer jackhmmer/hmmsearch
+    Apply filtering based on hmmer_filters
+    domtbl_p: Path to the domtblout file
+    hmmer_filters: BaseHmmerTblFilters, configuration for filtering
+    domtbl_splitter: regex pattern to split the domtblout lines
+    return: pd.DataFrame, domtbl DataFrame
+    """
 
     logger.info(f"Counting lines in domtblout from jackhmmer: {domtbl_p}")
     domtbl_len = int(
-        subprocess.run(["wc", "-l", domtbl_p], capture_output=True)
-        .stdout.decode()
-        .split(" ")[0]
+        subprocess.run(
+            ["awk", "!/^#/ {count++} END {print count}", str(domtbl_p)],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
     )
-    logger.info(f"{domtbl_len} lines in total.")
+    logger.info(f"{domtbl_len} lines in total.")  # In test, please fix, unique
 
     # Initialize domtbl_dict with header keys
     domtbl_dict = {}
@@ -297,12 +307,15 @@ def read_domtbl(
     for h in header:
         domtbl_dict[h] = []
 
-    t_e = hmmer_filters.GATHER_T_E
+    t_e = hmmer_filters.T_E
     len_diff = hmmer_filters.LEN_DIFF
-    with domtbl_p.open("rt") as dt:
-        for l in tqdm(dt, desc="Reading file", total=domtbl_len):
+    with domtbl_p.open("rt") as dt, tqdm(
+        total=domtbl_len, desc="Reading domtblout file", unit="line"
+    ) as pbar:
+        for l in dt:
             if l.startswith("#"):
                 continue
+            pbar.update(1)
             line_list = domtbl_splitter.split(l.strip())
 
             full_E = float(line_list[6])
