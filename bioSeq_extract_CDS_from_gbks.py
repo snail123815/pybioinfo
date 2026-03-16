@@ -1,10 +1,13 @@
 # This file is licensed under the MIT License
 
+
 import argparse
 import shutil
+import re
 from pathlib import Path
 
 from pyBioinfo_modules.bio_sequences.features_from_gbk import getCdsFromGbk
+
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("files", nargs="+", help="genbank file(s)")
@@ -15,17 +18,34 @@ argparser.add_argument(
     default="locus_tag",
 )
 argparser.add_argument(
-    "--prefix",
-    help="prefix to add to each extracted sequence ID",
+    "--globalprefix",
+    help="universal prefix to add to each extracted sequence ID (appended after regex prefix if used)",
     default=None,
 )
 argparser.add_argument(
-    "--suffix",
-    help=(
-        "suffix to add to each extracted sequence ID. "
-        "Defaults to the input file stem (e.g. '_genome' for genome.gbk)"
-    ),
+    "--globalsuffix",
+    help="universal suffix to add to each extracted sequence ID (appended after regex suffix if used)",
     default=None,
+)
+argparser.add_argument(
+    "--use-prefix-regex",
+    action="store_true",
+    help="Enable extracting prefix from filename using regex",
+)
+argparser.add_argument(
+    "--use-suffix-regex",
+    action="store_true",
+    help="Enable extracting suffix from filename using regex",
+)
+argparser.add_argument(
+    "--prefix-regex-from-filename",
+    help="Regex to extract prefix from filename (first match group used). Default: '^(.*?)\\.|_'",
+    default=r"^(.*?)\\.|_",
+)
+argparser.add_argument(
+    "--suffix-regex-from-filename",
+    help="Regex to extract suffix from filename (first match group used). Default: '^(.*?)\\.|_'",
+    default=r"^(.*?)\\.|_",
 )
 argparser.add_argument(
     "-j",
@@ -53,6 +73,12 @@ output_dir = Path(args.output_dir) if args.output_dir else None
 if output_dir is not None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
+def extract_from_filename(filename, regex, default=None):
+    match = re.match(regex, filename)
+    if match and match.groups():
+        return match.group(1)
+    return default
+
 if args.join:
     first_stem = Path(args.files[0]).stem
     join_path = Path(
@@ -63,13 +89,34 @@ if args.join:
     # Start fresh
     join_path.write_text("")
 
+
 for file in args.files:
     gbkPath = Path(file)
-    suffix = args.suffix if args.suffix is not None else f"_{gbkPath.stem}"
+    fname = gbkPath.name
+    # Determine prefix
+    prefix = ""
+    if args.use_prefix_regex:
+        regex_prefix = extract_from_filename(fname, args.prefix_regex_from_filename)
+        if regex_prefix:
+            prefix += regex_prefix
+    if args.globalprefix:
+        prefix += args.globalprefix
+    if not prefix:
+        prefix = None
+    # Determine suffix
+    suffix = ""
+    if args.use_suffix_regex:
+        regex_suffix = extract_from_filename(fname, args.suffix_regex_from_filename)
+        if regex_suffix:
+            suffix += f"_{regex_suffix}"
+    if args.globalsuffix:
+        suffix += args.globalsuffix
+    if not suffix:
+        suffix = f"_{gbkPath.stem}"
     fnaPath = getCdsFromGbk(
         gbkPath,
         getIdFrom=args.seq_id_from,
-        prefix=args.prefix,
+        prefix=prefix,
         suffix=suffix,
     )
     if output_dir is not None:
