@@ -23,7 +23,8 @@ log = logging.getLogger(__name__)
 
 
 def _getCdss(
-    seqObj, codonTable=11, getProteins=0, getIdFrom=None
+    seqObj, codonTable=11, getProteins=0, getIdFrom=None,
+    prefix=None, suffix=None
 ) -> list[SeqRecord]:
     """Extract proteins from a SeqRecord.
     If your input file have multiple contigs, do a loop"""
@@ -54,6 +55,11 @@ def _getCdss(
                     if idFrom in feat.qualifiers:
                         proteinId = feat.qualifiers[idFrom][0]
                         break
+
+            if prefix is not None:
+                proteinId = prefix + proteinId
+            if suffix is not None:
+                proteinId = proteinId + suffix
 
             if "gene" in feat.qualifiers:
                 proteinGeneId = feat.qualifiers["gene"][0]
@@ -108,6 +114,8 @@ def _getFeatureFromGbk(
     codonTable=11,
     targetFeature: Literal["cds", "protein"] = "protein",
     getIdFrom=None,
+    prefix=None,
+    suffix=None,
 ) -> Path:
     """
     Extract a feature from a GenBank file and write it to a new file
@@ -127,6 +135,8 @@ def _getFeatureFromGbk(
                         codonTable=codonTable,
                         getProteins=1,
                         getIdFrom=getIdFrom,
+                        prefix=prefix,
+                        suffix=suffix,
                     )
                 )
             n = SeqIO.write(proteins, faaPath, "fasta")
@@ -136,7 +146,7 @@ def _getFeatureFromGbk(
             cdss = []
             fnaPath = gbkPath.with_suffix(".cds.fna")
             for s in SeqIO.parse(str(gbkPath), "genbank"):
-                cdss.extend(_getCdss(s, getIdFrom=getIdFrom))
+                cdss.extend(_getCdss(s, getIdFrom=getIdFrom, prefix=prefix, suffix=suffix))
             n = SeqIO.write(cdss, fnaPath, "fasta")
             log.info(f"Successfully wrote {n} CDSs")
             outputFile = fnaPath
@@ -149,7 +159,9 @@ def _getFeatureFromGbk(
     return outputFile
 
 
-def getFaaFromGbk(gbkPath: Path, codonTable=11, getIdFrom=None) -> Path:
+def getFaaFromGbk(
+    gbkPath: Path, codonTable=11, getIdFrom=None, prefix=None, suffix=None
+) -> Path:
     """
     Extract protein sequences from a GenBank file
     """
@@ -158,14 +170,18 @@ def getFaaFromGbk(gbkPath: Path, codonTable=11, getIdFrom=None) -> Path:
         codonTable=codonTable,
         targetFeature="protein",
         getIdFrom=getIdFrom,
+        prefix=prefix,
+        suffix=suffix,
     )
 
 
-def getCdsFromGbk(gbkPath: Path, getIdFrom=None) -> Path:
+def getCdsFromGbk(gbkPath: Path, getIdFrom=None, prefix=None, suffix=None) -> Path:
     """
     Extract CDS sequences from a GenBank file
     """
-    return _getFeatureFromGbk(gbkPath, targetFeature="cds", getIdFrom=getIdFrom)
+    return _getFeatureFromGbk(
+        gbkPath, targetFeature="cds", getIdFrom=getIdFrom, prefix=prefix, suffix=suffix
+    )
 
 
 def get_target_region(

@@ -13,8 +13,23 @@ argparser.add_argument(
     help="feature name that will be used as sequence id",
     default="protein_id",
 )
+argparser.add_argument(
+    "--prefix",
+    help="prefix to add to each extracted sequence ID",
+    default=None,
+)
+argparser.add_argument(
+    "--suffix",
+    help="suffix to add to each extracted sequence ID",
+    default=None,
+)
 
 args = argparser.parse_args()
 gbkPath = Path(args.file)
-faaPath = getFaaFromGbk(gbkPath, getIdFrom=args.seq_id_from)
+faaPath = getFaaFromGbk(
+    gbkPath,
+    getIdFrom=args.seq_id_from,
+    prefix=args.prefix,
+    suffix=args.suffix,
+)
 print(faaPath)
